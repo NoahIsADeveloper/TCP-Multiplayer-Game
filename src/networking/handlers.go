@@ -114,6 +114,10 @@ func csMove(clientId clientId, packetData []byte) error {
 	player, ok := players[clientId]
 	if !ok { return fmt.Errorf("couldn't move client %d: no player object found", clientId)}
 	if x == player.X && y == player.Y { return nil}
+	if !player.InRange(x, y, 100) { // More than 100 units in a single packet
+		scKickPlayer(connections[clientId], "You were moving too fast!")
+		return fmt.Errorf("client %d was moving too fast", clientId)
+	}
 
 	player.Move(x, y)
 	toUpdate[clientId] = true
@@ -131,10 +135,6 @@ func scKickPlayer(conn net.Conn, reason string) error {
 
 func scPong(conn net.Conn, data []byte) error {
 	return sendPacket(conn, SC_PONG, data)
-}
-
-func scPing(conn net.Conn, data []byte) error {
-	return sendPacket(conn, SC_PING, data)
 }
 
 func csRequestClientId(conn net.Conn, clientId clientId) error {
