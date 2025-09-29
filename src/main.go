@@ -9,13 +9,15 @@ import (
 
 func main() {
 	port := flag.Int("port", 30000, "Port to run the server on")
+	host := flag.String("host", "0.0.0.0", "Host address to bind to")
+	tickrate := flag.Int("tickrate", 20, "Server TPS")
 	flag.Parse()
 
-	ln, err := net.Listen("tcp", "0.0.0.0:" + fmt.Sprint(*port))
+	ln, err := net.Listen("tcp", *host + fmt.Sprint(*port))
 	if (err != nil) { panic(err) }
-	fmt.Println("Server running on localhost:" + fmt.Sprint(*port))
+	fmt.Println("Server running on" + *host + ":" + fmt.Sprint(*port))
 
-	go networking.StartUpdateLoop()
+	networking.StartUpdateLoop(*tickrate)
 
 	for {
 		conn, err := ln.Accept()

@@ -27,8 +27,8 @@ func releaseID(id clientId) {
 	delete(connections, id)
 }
 
-func updatePlayersLoop() {
-	ticker := time.NewTicker(time.Second / 20)
+func updatePlayersLoop(tickrate int) {
+	ticker := time.NewTicker(time.Second / time.Duration(tickrate))
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -36,8 +36,8 @@ func updatePlayersLoop() {
 	}
 }
 
-func StartUpdateLoop() {
-	go updatePlayersLoop()
+func StartUpdateLoop(tickrate int) {
+	go updatePlayersLoop(tickrate)
 }
 
 func HandleClient(conn net.Conn) {
