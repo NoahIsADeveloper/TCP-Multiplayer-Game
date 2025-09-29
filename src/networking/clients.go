@@ -6,7 +6,7 @@ import (
 )
 
 type clientId uint8
-var nextID clientId = 1
+var nextID clientId = 0
 var freeIDs = []clientId{}
 
 func getID() clientId {
@@ -28,17 +28,25 @@ func HandleClient(conn net.Conn) {
 
 	defer conn.Close()
 	defer releaseID(id)
-	defer recover()
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic for client %d: %v\n", id, r)
+		}
+	}()
 
 	fmt.Printf("Client %d connected from %s!\n", id, conn.RemoteAddr().String())
 
 	for {
 		packetID, packetData, err := readPacket(conn)
 		if err != nil {
-			fmt.Printf("Couldn't read packet from client %d, encountered error %s.\n", id, err)
+			fmt.Printf("Couldn't read packet from client %d, encountered error %v.\n", id, err)
 			return
 		}
 
-		handlePacket(conn, id, packetID, packetData)
+		err = handlePacket(conn, id, packetID, packetData)
+		if err != nil {
+			fmt.Printf("Couldn't handle packet from client %d id %d, encountered error %v.\n", id, packetID, err)
+			return
+		}
 	}
 }
