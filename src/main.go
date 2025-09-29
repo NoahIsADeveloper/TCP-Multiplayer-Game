@@ -1,17 +1,19 @@
 package main
 
 import (
+	"flag"
 	"net"
 	"fmt"
 	"game/src/networking"
 )
 
-const PORT = 30000
-
 func main() {
-	ln, err := net.Listen("tcp", "0.0.0.0:" + fmt.Sprint(PORT))
+	port := flag.Int("port", 30000, "Port to run the server on")
+	flag.Parse()
+
+	ln, err := net.Listen("tcp", "0.0.0.0:" + fmt.Sprint(*port))
 	if (err != nil) { panic(err) }
-	fmt.Println("Server running on localhost:" + fmt.Sprint(PORT))
+	fmt.Println("Server running on localhost:" + fmt.Sprint(*port))
 
 	for {
 		conn, err := ln.Accept()
