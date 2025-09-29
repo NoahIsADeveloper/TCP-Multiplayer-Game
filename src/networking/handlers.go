@@ -12,6 +12,7 @@ const (
 	CS_PING = 0x02
 	CS_PONG = 0x03
 	CS_REQUEST_SYNC = 0x04
+	CS_REQUEST_CLIENT_ID = 0x05
 )
 
 const (
@@ -22,6 +23,7 @@ const (
 	SC_UPDATE_PLAYERS = 0x04
 	SC_SYNC_PLAYERS = 0x05
 	SC_KICK_PLAYER = 0x06
+	SC_CLIENT_ID = 0x07
 )
 
 var players = make(map[clientId]*entities.Player)
@@ -40,6 +42,7 @@ func scUpdatePlayers() error {
 	var data []byte
 	appendVarInt(&data, len(players))
 
+	// TODO: Only send recently moved players
 	for clientId, player := range players {
 		appendVarInt(&data, int(clientId))
 		x, y := player.GetPosition()
@@ -118,6 +121,10 @@ func csPing(conn net.Conn, data []byte) error {
 	return sendPacket(conn, SC_PONG, data)
 }
 
+func csRequestClientId(conn net.Conn, clientId clientId) error {
+	return sendPacket(conn, SC_CLIENT_ID, encodeVarInt(int(clientId)))
+}
+
 func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []byte) error {
 	switch packetID {
 	case CS_JOIN: // Join (fields ignored for now)
@@ -130,6 +137,8 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 		return nil
 	case CS_REQUEST_SYNC: // Request a sync
 		return scSyncPlayers(conn)
+	case CS_REQUEST_CLIENT_ID: // Request the client id
+		return csRequestClientId(conn, clientId)
 	default:
 		return fmt.Errorf("received unknown packet id %d from client %d", packetID, clientId)
 	}
