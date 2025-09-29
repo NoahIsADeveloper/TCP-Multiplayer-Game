@@ -26,7 +26,6 @@ func scUpdatePlayers() {
 		appendString(&data, player.Name)
 		x, y := player.GetPosition()
 		appendPosition(&data, x, y)
-		fmt.Println(player.Name, x, y)
 	}
 
 	for _, conn := range connections {
@@ -35,6 +34,11 @@ func scUpdatePlayers() {
 }
 
 func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
+	_, ok := players[clientId]
+	if ok {
+		return fmt.Errorf("cannot accept join request from client %d as it's already in game", clientId)
+	}
+
 	if (true) {
 		var offset int = 0
 		name, err := readString(packetData, &offset)
