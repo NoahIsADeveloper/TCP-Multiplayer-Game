@@ -12,8 +12,8 @@ func (entity *Entity) Move(x uint16, y uint16) {
 	entity.Y = y
 }
 
-func (player *Player) GetPosition() (uint16, uint16) {
-	return player.X, player.Y
+func (entity *Entity) GetPosition() (uint16, uint16) {
+	return entity.X, entity.Y
 }
 
 func CreateEntity() *Entity {

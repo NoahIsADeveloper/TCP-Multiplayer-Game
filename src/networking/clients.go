@@ -59,13 +59,13 @@ func HandleClient(conn net.Conn) {
 		packetID, packetData, err := readPacket(conn)
 		if err != nil {
 			fmt.Printf("Couldn't read packet from client %d, encountered error %v.\n", id, err)
-			continue
+			break
 		}
 
 		err = handlePacket(conn, id, packetID, packetData)
 		if err != nil {
 			fmt.Printf("Couldn't handle packet from client %d id %d, encountered error %v.\n", id, packetID, err)
-			continue
+			break
 		}
 	}
 }

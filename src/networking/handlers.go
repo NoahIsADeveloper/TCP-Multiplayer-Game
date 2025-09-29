@@ -23,7 +23,7 @@ const (
 	SC_SYNC_PLAYERS = 0x05
 )
 
-var players = make(map[clientId]entities.Player)
+var players = make(map[clientId]*entities.Player)
 
 func scJoinAccept(conn net.Conn, clientId clientId) error {
 	return sendPacket(conn, SC_JOIN_ACCEPT, encodeVarInt(int(clientId)))
@@ -80,7 +80,7 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 		var offset int = 0
 		name, err := readString(packetData, &offset)
 		if err != nil { return err }
-		players[clientId] = *entities.CreatePlayer(name)
+		players[clientId] = entities.CreatePlayer(name)
 
 		scJoinAccept(conn, clientId)
 		scSyncAllPlayers()
