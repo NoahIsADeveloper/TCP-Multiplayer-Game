@@ -21,6 +21,7 @@ const (
 	SC_PONG = 0x03
 	SC_UPDATE_PLAYERS = 0x04
 	SC_SYNC_PLAYERS = 0x05
+	SC_KICK_PLAYER = 0x06
 )
 
 var players = make(map[clientId]*entities.Player)
@@ -35,7 +36,7 @@ func scJoinDeny(conn net.Conn, reason string) error {
 	return sendPacket(conn, SC_JOIN_DENY, data)
 }
 
-func scUpdatePlayers() {
+func scUpdatePlayers() error {
 	var data []byte
 	appendVarInt(&data, len(players))
 
@@ -45,7 +46,7 @@ func scUpdatePlayers() {
 		appendPosition(&data, x, y)
 	}
 
-	sendPacketToAll(SC_UPDATE_PLAYERS, data)
+	return sendPacketToAll(SC_UPDATE_PLAYERS, data)
 }
 
 func getSyncData() []byte {
@@ -87,7 +88,7 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 
 		fmt.Printf("Client %d joined the game\n", clientId)
 	} else {
-		scJoinDeny(conn, "Join request denied")
+		return scJoinDeny(conn, "Join request denied")
 	}
 
 	return nil
@@ -105,10 +106,14 @@ func csMove(clientId clientId, packetData []byte) error {
 	return nil
 }
 
-func csPing(conn net.Conn, data []byte) error {
-	sendPacket(conn, SC_PONG, data)
+func scKickPlayer(conn net.Conn, reason string) error {
+	var data []byte
+	appendString(&data, reason)
+	return sendPacket(conn, SC_KICK_PLAYER, data)
+}
 
-	return nil
+func csPing(conn net.Conn, data []byte) error {
+	return sendPacket(conn, SC_PONG, data)
 }
 
 func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []byte) error {
