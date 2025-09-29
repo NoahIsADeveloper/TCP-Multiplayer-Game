@@ -6,31 +6,74 @@ import (
 	"game/src/environment/entities"
 )
 
+const (
+	CS_JOIN = 0x00
+	CS_MOVE = 0x01
+	CS_PING = 0x02
+	CS_PONG = 0x03
+	CS_REQUEST_SYNC = 0x04
+)
+
+const (
+	SC_JOIN_ACCEPT = 0x00
+	SC_JOIN_DENY = 0x01
+	SC_PING = 0x02
+	SC_PONG = 0x03
+	SC_UPDATE_PLAYERS = 0x04
+	SC_SYNC_PLAYERS = 0x05
+)
+
 var players = make(map[clientId]entities.Player)
 
-func scJoinAccept(conn net.Conn) {
-	sendPacket(conn, 0x00, []byte{0x00})
+func scJoinAccept(conn net.Conn, clientId clientId) {
+	sendPacket(conn, SC_JOIN_ACCEPT, encodeVarInt(int(clientId)))
 }
 
 func scJoinDeny(conn net.Conn, reason string) {
 	var data []byte
 	appendString(&data, reason)
-	sendPacket(conn, 0x01, data)
+	sendPacket(conn, SC_JOIN_DENY, data)
 }
 
 func scUpdatePlayers() {
 	var data []byte
 	appendVarInt(&data, len(players))
 
-	for _, player := range players {
-		appendString(&data, player.Name)
+	for clientId, player := range players {
+		appendVarInt(&data, int(clientId))
 		x, y := player.GetPosition()
 		appendPosition(&data, x, y)
 	}
 
 	for _, conn := range connections {
-		sendPacket(conn, 0x04, data)
+		sendPacket(conn, SC_UPDATE_PLAYERS, data)
 	}
+}
+
+func getSyncData() []byte {
+	var data []byte
+	appendVarInt(&data, len(players))
+
+	for clientId, player := range players {
+		appendVarInt(&data, int(clientId))
+		appendString(&data, player.Name)
+		x, y := player.GetPosition()
+		appendPosition(&data, x, y)
+	}
+
+	return data
+}
+
+func scSyncAllPlayers() {
+	data := getSyncData()
+
+	for _, conn := range connections {
+		sendPacket(conn, SC_SYNC_PLAYERS, data)
+	}
+}
+
+func scSyncPlayers(conn net.Conn) error {
+	return sendPacket(conn, SC_SYNC_PLAYERS, getSyncData())
 }
 
 func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
@@ -43,9 +86,11 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 		var offset int = 0
 		name, err := readString(packetData, &offset)
 		if err != nil { return err }
-		scJoinAccept(conn)
-
 		players[clientId] = *entities.CreatePlayer(name)
+
+		scJoinAccept(conn, clientId)
+		scSyncAllPlayers()
+
 		fmt.Printf("Client %d joined the game\n", clientId)
 	} else {
 		scJoinDeny(conn, "Join request denied")
@@ -67,19 +112,23 @@ func csMove(clientId clientId, packetData []byte) error {
 }
 
 func csPing(conn net.Conn, data []byte) error {
-	sendPacket(conn, 0x03, data)
+	sendPacket(conn, SC_PONG, data)
 
 	return nil
 }
 
 func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []byte) error {
 	switch packetID {
-	case 0x00: // Join (fields ignored for now)
+	case CS_JOIN: // Join (fields ignored for now)
 		return csJoinRequest(conn, clientId, packetData)
-	case 0x01: // Move
+	case CS_MOVE: // Move
 		return csMove(clientId, packetData)
-	case 0x02: // Ping
+	case CS_PING: // Ping
 		return csPing(conn, packetData)
+	case CS_PONG: // Pong
+		return nil
+	case CS_REQUEST_SYNC: // Request a sync
+		return scSyncPlayers(conn)
 	default:
 		return fmt.Errorf("received unknown packet id %d from client %d", packetID, clientId)
 	}
