@@ -13,9 +13,9 @@ func main() {
 	tickrate := flag.Int("tickrate", 20, "Server TPS")
 	flag.Parse()
 
-	ln, err := net.Listen("tcp", *host + fmt.Sprint(*port))
+	ln, err := net.Listen("tcp", *host + ":" + fmt.Sprint(*port))
 	if (err != nil) { panic(err) }
-	fmt.Println("Server running on" + *host + ":" + fmt.Sprint(*port))
+	fmt.Println("Server running on " + *host + ":" + fmt.Sprint(*port))
 
 	networking.StartUpdateLoop(*tickrate)
 
