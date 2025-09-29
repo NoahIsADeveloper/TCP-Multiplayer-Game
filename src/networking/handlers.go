@@ -83,8 +83,10 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 		if err != nil { return err }
 		players[clientId] = entities.CreatePlayer(name)
 
-		scJoinAccept(conn, clientId)
-		scSyncAllPlayers()
+		err = scJoinAccept(conn, clientId)
+		if err != nil { return err }
+		err = scSyncAllPlayers()
+		if err != nil { return err }
 
 		fmt.Printf("Client %d joined the game\n", clientId)
 	} else {
