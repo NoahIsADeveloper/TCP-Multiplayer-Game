@@ -3,11 +3,13 @@ package networking
 import (
 	"net"
 	"fmt"
+	"time"
 )
 
 type clientId uint8
 var nextID clientId = 0
 var freeIDs = []clientId{}
+var connections = make(map[clientId]net.Conn)
 
 func getID() clientId {
 	if (len(freeIDs) > 0) {
@@ -21,20 +23,33 @@ func getID() clientId {
 
 func releaseID(id clientId) {
 	freeIDs = append(freeIDs, id)
+	delete(players, id)
+	delete(connections, id)
+}
+
+func StartUpdateLoop() {
+    ticker := time.NewTicker(time.Second / 20)
+    defer ticker.Stop()
+
+    for range ticker.C {
+        scUpdatePlayers()
+    }
 }
 
 func HandleClient(conn net.Conn) {
 	id := getID()
+	connections[id] = conn
 
 	defer conn.Close()
 	defer releaseID(id)
+	defer fmt.Printf("Client %d connection closed.\n", id)
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Recovered from panic for client %d: %v\n", id, r)
 		}
 	}()
 
-	fmt.Printf("Client %d connected from %s!\n", id, conn.RemoteAddr().String())
+	fmt.Printf("Client %d connected from %s.\n", id, conn.RemoteAddr().String())
 
 	for {
 		packetID, packetData, err := readPacket(conn)

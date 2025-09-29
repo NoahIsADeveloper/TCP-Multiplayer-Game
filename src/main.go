@@ -1,10 +1,10 @@
 package main
 
 import (
+	"game/src/networking"
 	"flag"
 	"net"
 	"fmt"
-	"game/src/networking"
 )
 
 func main() {
@@ -14,6 +14,8 @@ func main() {
 	ln, err := net.Listen("tcp", "0.0.0.0:" + fmt.Sprint(*port))
 	if (err != nil) { panic(err) }
 	fmt.Println("Server running on localhost:" + fmt.Sprint(*port))
+
+	go networking.StartUpdateLoop()
 
 	for {
 		conn, err := ln.Accept()
