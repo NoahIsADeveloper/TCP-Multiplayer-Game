@@ -25,14 +25,14 @@ const (
 
 var players = make(map[clientId]entities.Player)
 
-func scJoinAccept(conn net.Conn, clientId clientId) {
-	sendPacket(conn, SC_JOIN_ACCEPT, encodeVarInt(int(clientId)))
+func scJoinAccept(conn net.Conn, clientId clientId) error {
+	return sendPacket(conn, SC_JOIN_ACCEPT, encodeVarInt(int(clientId)))
 }
 
-func scJoinDeny(conn net.Conn, reason string) {
+func scJoinDeny(conn net.Conn, reason string) error {
 	var data []byte
 	appendString(&data, reason)
-	sendPacket(conn, SC_JOIN_DENY, data)
+	return sendPacket(conn, SC_JOIN_DENY, data)
 }
 
 func scUpdatePlayers() {
@@ -45,9 +45,7 @@ func scUpdatePlayers() {
 		appendPosition(&data, x, y)
 	}
 
-	for _, conn := range connections {
-		sendPacket(conn, SC_UPDATE_PLAYERS, data)
-	}
+	sendPacketToAll(SC_UPDATE_PLAYERS, data)
 }
 
 func getSyncData() []byte {
@@ -64,12 +62,8 @@ func getSyncData() []byte {
 	return data
 }
 
-func scSyncAllPlayers() {
-	data := getSyncData()
-
-	for _, conn := range connections {
-		sendPacket(conn, SC_SYNC_PLAYERS, data)
-	}
+func scSyncAllPlayers() error {
+	return sendPacketToAll(SC_SYNC_PLAYERS, getSyncData())
 }
 
 func scSyncPlayers(conn net.Conn) error {

@@ -97,6 +97,15 @@ func sendPacket(conn net.Conn, packetID int, data []byte) error {
 	return err
 }
 
+func sendPacketToAll(packetID int, data []byte) error {
+	for _, conn := range(connections) {
+		err := sendPacket(conn, packetID, data)
+		if err != nil { return err }
+	}
+
+	return nil
+}
+
 func encodeVarInt(value int) []byte {
 	var result []byte
 	for {
@@ -128,6 +137,22 @@ func appendPosition(list *[]byte, x uint16, y uint16) {
 	binary.BigEndian.PutUint16(buf[0:2], uint16(x))
 	binary.BigEndian.PutUint16(buf[2:4], uint16(y))
 	*list = append(*list, buf...)
+}
+
+func readItemArray(data []byte, offset *int, read func(data []byte, offset *int) any) ([]any, error) {
+	length, err := readVarInt(data, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]any, 0, length)
+
+	for range length {
+		item := read(data, offset)
+		result = append(result, item)
+	}
+
+	return result, nil
 }
 
 func readVarInt(data []byte, offset *int) (int, error) {
