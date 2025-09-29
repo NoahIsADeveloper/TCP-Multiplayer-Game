@@ -44,9 +44,9 @@ func HandleClient(conn net.Conn) {
 	id := getID()
 	connections[id] = conn
 
+	defer fmt.Printf("Client %d connection closed.\n", id)
 	defer conn.Close()
 	defer releaseID(id)
-	defer fmt.Printf("Client %d connection closed.\n", id)
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Recovered from panic for client %d: %v\n", id, r)
@@ -59,13 +59,13 @@ func HandleClient(conn net.Conn) {
 		packetID, packetData, err := readPacket(conn)
 		if err != nil {
 			fmt.Printf("Couldn't read packet from client %d, encountered error %v.\n", id, err)
-			break
+			return
 		}
 
 		err = handlePacket(conn, id, packetID, packetData)
 		if err != nil {
 			fmt.Printf("Couldn't handle packet from client %d id %d, encountered error %v.\n", id, packetID, err)
-			break
+			return
 		}
 	}
 }
