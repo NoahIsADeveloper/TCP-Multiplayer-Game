@@ -27,6 +27,7 @@ const (
 )
 
 var players = make(map[clientId]*entities.Player)
+var toUpdate = make(map[clientId]bool)
 
 func scJoinAccept(conn net.Conn, clientId clientId) error {
 	return sendPacket(conn, SC_JOIN_ACCEPT, encodeVarInt(int(clientId)))
@@ -44,9 +45,14 @@ func scUpdatePlayers() error {
 
 	// TODO: Only send recently moved players
 	for clientId, player := range players {
+		value, ok := toUpdate[clientId]
+		if !ok || !value { continue }
+
 		appendVarInt(&data, int(clientId))
 		x, y := player.GetPosition()
 		appendPosition(&data, x, y)
+
+		toUpdate[clientId] = false
 	}
 
 	return sendPacketToAll(SC_UPDATE_PLAYERS, data)
@@ -85,6 +91,7 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 		name, err := readString(packetData, &offset)
 		if err != nil { return err }
 		players[clientId] = entities.CreatePlayer(name)
+		toUpdate[clientId] = false
 
 		err = scJoinAccept(conn, clientId)
 		if err != nil { return err }
@@ -103,10 +110,13 @@ func csMove(clientId clientId, packetData []byte) error {
 	var offset int = 0
 	x, y, err := readPosition(packetData, &offset)
 	if err != nil { return err }
-	
+
 	player, ok := players[clientId]
 	if !ok { return fmt.Errorf("couldn't move client %d: no player object found", clientId)}
+	if x == player.X && y == player.Y { return nil}
+
 	player.Move(x, y)
+	toUpdate[clientId] = true
 
 	return nil
 }
@@ -114,11 +124,17 @@ func csMove(clientId clientId, packetData []byte) error {
 func scKickPlayer(conn net.Conn, reason string) error {
 	var data []byte
 	appendString(&data, reason)
-	return sendPacket(conn, SC_KICK_PLAYER, data)
+	err := sendPacket(conn, SC_KICK_PLAYER, data)
+	conn.Close()
+	return err
 }
 
-func csPing(conn net.Conn, data []byte) error {
+func scPong(conn net.Conn, data []byte) error {
 	return sendPacket(conn, SC_PONG, data)
+}
+
+func scPing(conn net.Conn, data []byte) error {
+	return sendPacket(conn, SC_PING, data)
 }
 
 func csRequestClientId(conn net.Conn, clientId clientId) error {
@@ -132,7 +148,7 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 	case CS_MOVE: // Move
 		return csMove(clientId, packetData)
 	case CS_PING: // Ping
-		return csPing(conn, packetData)
+		return scPong(conn, packetData)
 	case CS_PONG: // Pong
 		return nil
 	case CS_REQUEST_SYNC: // Request a sync

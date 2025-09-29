@@ -25,6 +25,7 @@ func releaseID(id clientId) {
 	freeIDs = append(freeIDs, id)
 	delete(players, id)
 	delete(connections, id)
+	delete(toUpdate, id)
 }
 
 func updatePlayersLoop(tickrate int) {
