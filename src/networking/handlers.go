@@ -59,7 +59,6 @@ func scUpdatePlayers(lobby *Lobby) error {
 		appendPosition(&array, x, y)
 		arraySize++
 		toUpdate[clientId] = false
-		fmt.Println(clientId, lobby.ID)
 	}
 
 	appendVarInt(&data, arraySize)
