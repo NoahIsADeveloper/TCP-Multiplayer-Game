@@ -3,7 +3,6 @@ package networking
 import (
 	"fmt"
 	"net"
-	"potato-bones/src/environment/entities"
 )
 
 const (
@@ -40,8 +39,9 @@ func scJoinDeny(conn net.Conn, reason string) error {
 	return sendPacket(conn, SC_JOIN_DENY, data)
 }
 
-func scUpdatePlayers() error {
+func scUpdatePlayers(lobby *Lobby) error {
 	var data []byte
+	players := lobby.players
 	appendVarInt(&data, len(players))
 
 	// TODO: Only send recently moved players
@@ -59,8 +59,9 @@ func scUpdatePlayers() error {
 	return sendPacketToAll(SC_UPDATE_PLAYERS, data)
 }
 
-func getSyncData() []byte {
+func getSyncData(lobby *Lobby) []byte {
 	var data []byte
+	players := lobby.players
 	appendVarInt(&data, len(players))
 
 	for clientId, player := range players {
@@ -73,31 +74,34 @@ func getSyncData() []byte {
 	return data
 }
 
-func scSyncAllPlayers() error {
-	return sendPacketToAll(SC_SYNC_PLAYERS, getSyncData())
+func scSyncPlayers(conn net.Conn, clientId clientId) error {
+	lobby, ok := JoinedLobbies[clientId]
+	if !ok { return fmt.Errorf("couldn't find lobby client %d is connected to", clientId) }
+	return sendPacket(conn, SC_SYNC_PLAYERS, getSyncData(lobby))
 }
 
-func scSyncPlayers(conn net.Conn) error {
-	return sendPacket(conn, SC_SYNC_PLAYERS, getSyncData())
+func scSyncAllPlayers(lobby *Lobby) []error {
+	data := getSyncData(lobby)
+	return lobby.SendPacketToAll(SC_SYNC_PLAYERS, data)
 }
 
 func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
-	_, ok := players[clientId]
+	lobby, ok := JoinedLobbies[clientId]
 	if ok {
-		return fmt.Errorf("cannot accept join request from client %d as it's already in game", clientId)
+		return fmt.Errorf("cannot accept join request from client %d as it's already in a lobby", clientId)
 	}
 
 	if (true) {
 		var offset int = 0
 		name, err := readString(packetData, &offset)
 		if err != nil { return err }
-		players[clientId] = entities.CreatePlayer(name)
+		lobby.AddPlayer(clientId, name, conn)
 		toUpdate[clientId] = false
 
 		err = scJoinAccept(conn, clientId)
 		if err != nil { return err }
-		err = scSyncAllPlayers()
-		if err != nil { return err }
+		errs := scSyncAllPlayers(lobby)
+		if len(errs) > 0 { return errs[1] }
 
 		fmt.Printf("Client %d joined the game\n", clientId)
 	} else {
@@ -112,11 +116,14 @@ func csMove(clientId clientId, packetData []byte) error {
 	x, y, err := readPosition(packetData, &offset)
 	if err != nil { return err }
 
-	player, ok := players[clientId]
-	if !ok { return fmt.Errorf("couldn't move client %d: no player object found", clientId)}
+	lobby, ok := GetLobbyFromClient(clientId)
+	if !ok { return fmt.Errorf("cannot find client %d in a lobby", clientId) }
+
+	player, conn, err := lobby.GetClientData(clientId)
+	if err != nil { return err }
 	if x == player.X && y == player.Y { return nil}
 	if !player.InRange(x, y, 100) { // More than 100 units in a single packet
-		scKickPlayer(connections[clientId], "You were moving too fast!")
+		scKickPlayer(conn, "You were moving too fast!")
 		return fmt.Errorf("client %d was moving too fast", clientId)
 	}
 
@@ -153,7 +160,7 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 	case CS_PONG: // Pong
 		return nil
 	case CS_REQUEST_SYNC: // Request a sync
-		return scSyncPlayers(conn)
+		return scSyncPlayers(conn, clientId)
 	case CS_REQUEST_CLIENT_ID: // Request the client id
 		return csRequestClientId(conn, clientId)
 	case CS_REQUEST_LOBBY_LIST: // Request a list of lobbies

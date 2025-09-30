@@ -23,7 +23,8 @@ func getID() clientId {
 
 func releaseID(id clientId) {
 	freeClientIDs = append(freeClientIDs, id)
-	GetLobbyFromClient(id).RemovePlayer(id)
+	lobby, ok := GetLobbyFromClient(id)
+	if ok { lobby.RemovePlayer(id) }
 	delete(connections, id)
 	delete(toUpdate, id)
 }
@@ -33,7 +34,9 @@ func updatePlayersLoop(tickrate int) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		scUpdatePlayers()
+		for _, lobby := range(Lobbies) {
+			scUpdatePlayers(lobby)
+		}
 	}
 }
 
@@ -48,6 +51,12 @@ func HandleClient(conn net.Conn) {
 	defer fmt.Printf("Client %d connection closed.\n", id)
 	defer conn.Close()
 	defer releaseID(id)
+	defer func()  {
+		lobby, ok := JoinedLobbies[id]
+		if ok {
+			lobby.RemovePlayer(id)
+		}
+	}()
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Recovered from panic for client %d: %v\n", id, r)

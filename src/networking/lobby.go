@@ -58,8 +58,9 @@ func (lobby *Lobby) SendPacketToAll(packetID int, data []byte) []error {
 	return errList
 }
 
-func GetLobbyFromClient(clientId clientId) (*Lobby) {
-	return JoinedLobbies[clientId]
+func GetLobbyFromClient(clientId clientId) (*Lobby, bool) {
+	lobby, ok := JoinedLobbies[clientId]
+	return lobby, ok
 }
 
 func CreateLobby(name string, host clientId) *Lobby {
