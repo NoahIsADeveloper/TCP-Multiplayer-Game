@@ -59,12 +59,16 @@ func scUpdatePlayers(lobby *Lobby) error {
 		appendPosition(&array, x, y)
 		arraySize++
 		toUpdate[clientId] = false
+		fmt.Println(clientId, lobby.ID)
 	}
 
 	appendVarInt(&data, arraySize)
 	data = append(data, array...)
 
-	return sendPacketToAll(SC_UPDATE_PLAYERS, data)
+	errs := lobby.SendPacketToAll(SC_UPDATE_PLAYERS, data)
+	if len(errs) > 0 { return errs[0] }
+
+	return nil
 }
 
 func getSyncData(lobby *Lobby) []byte {
