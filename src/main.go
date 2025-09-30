@@ -12,8 +12,9 @@ func parseFlags() {
 	globals.Port = flag.Int("port", 30000, "Port to run the server on")
 	globals.Host = flag.String("host", "0.0.0.0", "Host address to bind to")
 	globals.Tickrate = flag.Int("tickrate", 20, "Server TPS")
+
 	globals.DebugShowOutgoing = flag.Bool("debug-outgoing", false, "Print outgoing packets")
-	globals.DebugShowIncomming = flag.Bool("debug-incomming", false, "Print incomming packets")
+	globals.DebugShowIncoming = flag.Bool("debug-incoming", false, "Print incoming packets")
 
 	flag.Parse()
 }

@@ -6,4 +6,4 @@ var Host *string
 var Tickrate *int
 
 var DebugShowOutgoing *bool
-var DebugShowIncomming *bool
+var DebugShowIncoming *bool
