@@ -1,7 +1,7 @@
 package main
 
 import (
-	"game/src/networking"
+	"potato-bones/src/networking"
 	"flag"
 	"net"
 	"fmt"

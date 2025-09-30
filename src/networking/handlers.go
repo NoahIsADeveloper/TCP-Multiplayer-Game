@@ -3,7 +3,7 @@ package networking
 import (
 	"fmt"
 	"net"
-	"game/src/environment/entities"
+	"potato-bones/src/environment/entities"
 )
 
 const (
@@ -13,6 +13,8 @@ const (
 	CS_PONG = 0x03
 	CS_REQUEST_SYNC = 0x04
 	CS_REQUEST_CLIENT_ID = 0x05
+	CS_REQUEST_LOBBY_LIST = 0x06
+	CS_CREATE_LOBBY = 0x07
 )
 
 const (
@@ -26,7 +28,6 @@ const (
 	SC_CLIENT_ID = 0x07
 )
 
-var players = make(map[clientId]*entities.Player)
 var toUpdate = make(map[clientId]bool)
 
 func scJoinAccept(conn net.Conn, clientId clientId) error {
@@ -155,6 +156,15 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 		return scSyncPlayers(conn)
 	case CS_REQUEST_CLIENT_ID: // Request the client id
 		return csRequestClientId(conn, clientId)
+	case CS_REQUEST_LOBBY_LIST: // Request a list of lobbies
+		return nil
+	case CS_CREATE_LOBBY: // Request a lobby be created
+		var offset int = 0
+		lobbyName, err := readString(packetData, &offset)
+		if err != nil { return err }
+		CreateLobby(lobbyName, clientId)
+
+		return nil
 	default:
 		return fmt.Errorf("received unknown packet id %d from client %d", packetID, clientId)
 	}

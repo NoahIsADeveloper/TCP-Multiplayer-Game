@@ -7,23 +7,23 @@ import (
 )
 
 type clientId uint8
-var nextID clientId = 0
-var freeIDs = []clientId{}
+var nextClientID clientId = 0
+var freeClientIDs = []clientId{}
 var connections = make(map[clientId]net.Conn)
 
 func getID() clientId {
-	if (len(freeIDs) > 0) {
-		id := freeIDs[len(freeIDs)-1]
-		freeIDs = freeIDs[:len(freeIDs)-1]
+	if (len(freeClientIDs) > 0) {
+		id := freeClientIDs[len(freeClientIDs)-1]
+		freeClientIDs = freeClientIDs[:len(freeClientIDs)-1]
 		return id
 	}
-	nextID++
-	return nextID - 1
+	nextClientID++
+	return nextClientID - 1
 }
 
 func releaseID(id clientId) {
-	freeIDs = append(freeIDs, id)
-	delete(players, id)
+	freeClientIDs = append(freeClientIDs, id)
+	GetLobbyFromClient(id).RemovePlayer(id)
 	delete(connections, id)
 	delete(toUpdate, id)
 }
