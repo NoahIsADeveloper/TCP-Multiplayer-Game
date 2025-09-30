@@ -7,3 +7,4 @@ var Tickrate *int
 
 var DebugShowOutgoing *bool
 var DebugShowIncoming *bool
+var DebugLobbyInfo *bool

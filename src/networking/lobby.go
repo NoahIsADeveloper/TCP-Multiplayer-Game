@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"potato-bones/src/globals"
 	"potato-bones/src/environment/entities"
 	"fmt"
 	"net"
@@ -32,7 +33,12 @@ func (lobby *Lobby) RemovePlayer(clientId clientId) {
 	} else if lobby.Host == clientId {
 		for newHost := range lobby.players {
 			lobby.Host = newHost
+			break
 		}
+	}
+
+	if *globals.DebugLobbyInfo {
+		fmt.Printf("[DEBUG] Removed client %d from lobby %d\n", clientId, lobby.ID)
 	}
 }
 
@@ -45,6 +51,10 @@ func (lobby *Lobby) AddPlayer(clientId clientId, name string, conn net.Conn) err
 	lobby.players[clientId] = entities.CreatePlayer(name)
 	lobby.connections[clientId] = conn
 	JoinedLobbies[clientId] = lobby
+
+	if *globals.DebugLobbyInfo {
+		fmt.Printf("[DEBUG] Added client %d to lobby %d\n", clientId, lobby.ID)
+	}
 
 	return nil
 }
@@ -96,6 +106,9 @@ func CreateLobby(name string, host clientId) *Lobby {
 	}
 
 	Lobbies[lobbyID] = lobby
+	if *globals.DebugLobbyInfo {
+		fmt.Printf("[DEBUG] Created lobby %s %d with host %d\n", name, lobbyID, host)
+	}
 
 	return lobby
 }

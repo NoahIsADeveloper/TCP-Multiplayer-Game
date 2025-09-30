@@ -15,6 +15,7 @@ func parseFlags() {
 
 	globals.DebugShowOutgoing = flag.Bool("debug-outgoing", false, "Print outgoing packets")
 	globals.DebugShowIncoming = flag.Bool("debug-incoming", false, "Print incoming packets")
+	globals.DebugLobbyInfo = flag.Bool("debug-lobby", false, "Print lobby updates")
 
 	flag.Parse()
 }
