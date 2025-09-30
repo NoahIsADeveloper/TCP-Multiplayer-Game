@@ -29,8 +29,11 @@ const (
 
 var toUpdate = make(map[clientId]bool)
 
-func scJoinAccept(conn net.Conn, clientId clientId) error {
-	return sendPacket(conn, SC_JOIN_ACCEPT, encodeVarInt(int(clientId)))
+func scJoinAccept(conn net.Conn, clientId clientId, lobby *Lobby) error {
+	var data []byte
+	appendVarInt(&data, int(clientId))
+	appendString(&data, lobby.Name)
+	return sendPacket(conn, SC_JOIN_ACCEPT, data)
 }
 
 func scJoinDeny(conn net.Conn, reason string) error {
@@ -91,7 +94,7 @@ func scSyncAllPlayers(lobby *Lobby) []error {
 func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 	lobby, ok := JoinedLobbies[clientId]
 	if ok {
-		return fmt.Errorf("cannot accept join request from client %d as it's already in a lobby", clientId)
+		return scJoinDeny(conn, "Cannot join as you're already in a lobby.")
 	}
 
 	if (true) {
@@ -101,7 +104,7 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 		lobby.AddPlayer(clientId, name, conn)
 		toUpdate[clientId] = false
 
-		err = scJoinAccept(conn, clientId)
+		err = scJoinAccept(conn, clientId, lobby)
 		if err != nil { return err }
 		errs := scSyncAllPlayers(lobby)
 		if len(errs) > 0 { return errs[1] }
