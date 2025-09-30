@@ -96,7 +96,7 @@ func scSyncAllPlayers(lobby *Lobby) []error {
 }
 
 func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
-	lobby, ok := JoinedLobbies[clientId]
+	_, ok := JoinedLobbies[clientId]
 	if ok {
 		return scJoinDeny(conn, "Cannot join as you're already in a lobby.")
 	}
@@ -105,7 +105,18 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 		var offset int = 0
 		name, err := readString(packetData, &offset)
 		if err != nil { return err }
-		lobby.AddPlayer(clientId, name, conn)
+
+		lobbyId, err:= readVarInt(packetData, &offset)
+		if err != nil { return err }
+
+		lobby, ok := Lobbies[lobbyId]
+		if !ok {
+			return scJoinDeny(conn, "Cannot join lobby as it does not exist")
+		}
+
+		err = lobby.AddPlayer(clientId, name, conn)
+		if err != nil { return err}
+
 		toUpdate[clientId] = false
 
 		err = scJoinAccept(conn, clientId, lobby)
@@ -184,7 +195,8 @@ func csCreateLobby(conn net.Conn, clientId clientId, packetData []byte) error {
 	if err != nil { return err }
 
 	lobby := CreateLobby(lobbyName, clientId)
-	lobby.AddPlayer(clientId, username, conn)
+	err = lobby.AddPlayer(clientId, username, conn)
+	if err != nil { return err }
 
 	err = scJoinAccept(conn, clientId, lobby)
 	if err != nil { return err }

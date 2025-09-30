@@ -36,10 +36,17 @@ func (lobby *Lobby) RemovePlayer(clientId clientId) {
 	}
 }
 
-func (lobby *Lobby) AddPlayer(clientId clientId, name string, conn net.Conn) {
+func (lobby *Lobby) AddPlayer(clientId clientId, name string, conn net.Conn) error {
+	_, ok := JoinedLobbies[clientId]
+	if ok {
+		return fmt.Errorf("cannot add client %d as they are already in a lobby", clientId)
+	}
+
 	lobby.players[clientId] = entities.CreatePlayer(name)
 	lobby.connections[clientId] = conn
 	JoinedLobbies[clientId] = lobby
+
+	return nil
 }
 
 func (lobby *Lobby) GetClientData(clientId clientId) (*entities.Player, net.Conn, error) {
