@@ -26,6 +26,7 @@ const (
 	SC_SYNC_PLAYERS = 0x05
 	SC_KICK_PLAYER = 0x06
 	SC_CLIENT_ID = 0x07
+	SC_LOBBY_LIST = 0x08
 )
 
 var toUpdate = make(map[clientId]bool)
@@ -108,7 +109,7 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 		err = scJoinAccept(conn, clientId, lobby)
 		if err != nil { return err }
 		errs := scSyncAllPlayers(lobby)
-		if len(errs) > 0 { return errs[1] }
+		if len(errs) > 0 { return errs[0] } // TODO Better error handling
 
 		fmt.Printf("Client %d joined the game\n", clientId)
 	} else {
@@ -129,7 +130,7 @@ func csMove(clientId clientId, packetData []byte) error {
 	player, _, err := lobby.GetClientData(clientId)
 	if err != nil { return err }
 	plrX, plrY := player.GetPosition()
-	if x == plrX && y == plrY { return nil}
+	if x == plrX && y == plrY { return nil }
 
 	player.Move(x, y)
 	toUpdate[clientId] = true
@@ -167,12 +168,34 @@ func scLobbyList(conn net.Conn) error {
 		}
 	}
 
-	return sendPacket(conn, 0x08, data)
+	return sendPacket(conn, SC_LOBBY_LIST, data)
+}
+
+func csCreateLobby(conn net.Conn, clientId clientId, packetData []byte) error {
+	var offset int = 0
+
+	// TODO: This sequence can probably be it's own fuction (same with csJoinRequest)
+	username, err := readString(packetData, &offset)
+	if err != nil { return err }
+
+	lobbyName, err := readString(packetData, &offset)
+	if err != nil { return err }
+
+	lobby := CreateLobby(lobbyName, clientId)
+	lobby.AddPlayer(clientId, username, conn)
+
+	err = scJoinAccept(conn, clientId, lobby)
+	if err != nil { return err }
+
+	errs := scSyncAllPlayers(lobby)
+	if len(errs) > 0 { return errs[0] } // TODO Better error handling
+
+	return nil
 }
 
 func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []byte) error {
-	if *globals.DebugShowIncomming {
-		fmt.Printf("Incomming packet ID %d\n", packetID)
+	if *globals.DebugShowIncoming {
+		fmt.Printf("[DEBUG] Incomming packet ID %d\n", packetID)
 	}
 
 	switch packetID {
@@ -180,9 +203,9 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 		return csJoinRequest(conn, clientId, packetData)
 	case CS_MOVE: // Move
 		return csMove(clientId, packetData)
-	case CS_PING: // Ping
+	case CS_PING: // Incomming ping
 		return scPong(conn, packetData)
-	case CS_PONG: // Pong
+	case CS_PONG: // Outgoing ping response packet
 		return nil
 	case CS_REQUEST_SYNC: // Request a sync
 		return scSyncPlayers(conn, clientId)
@@ -191,12 +214,7 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 	case CS_REQUEST_LOBBY_LIST: // Request a list of lobbies
 		return scLobbyList(conn)
 	case CS_CREATE_LOBBY: // Request a lobby be created
-		var offset int = 0
-		lobbyName, err := readString(packetData, &offset)
-		if err != nil { return err }
-		CreateLobby(lobbyName, clientId)
-
-		return nil
+		return csCreateLobby(conn, clientId, packetData)
 	default:
 		return fmt.Errorf("received unknown packet id %d from client %d", packetID, clientId)
 	}
