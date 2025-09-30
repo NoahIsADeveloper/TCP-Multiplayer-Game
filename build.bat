@@ -1,29 +1,47 @@
 @echo off
+setlocal enabledelayedexpansion
 
-if "%1" == "" (
-    echo Usage: build.bat windows^|linux^|pi
+if "%~1"=="" (
+    echo Usage: build.bat windows^|linux amd64^|arm64^|arm
     exit /b 1
 )
 
-if /i "%1" == "windows" (
-    set GOOS = windows
-    set GOARCH = amd64
-    set OUTPUT = build/build-windows.exe
-) else if /i "%1"=="linux" (
-    set GOOS = linux
-    set GOARCH = arm64
-    set OUTPUT = build/build-linux
-) else if /i "%1" == "pi" (
-    set GOOS = linux
-    set GOARCH = arm
-    set OUTPUT = build/build-pi
+if "%~2"=="" (
+    echo Usage: build.bat windows^|linux amd64^|arm64^|arm
+    exit /b 1
+)
+
+if /i "%~2"=="amd64" (
+    set GOARCH=amd64
+) else if /i "%~2"=="arm64" (
+    set GOARCH=arm64
+) else if /i "%~2"=="arm" (
+    set GOARCH=arm
 ) else (
-    echo Invalid argument. Use "windows" or "linux".
+    echo Invalid architecture. Use amd64, arm64 or arm.
     exit /b 1
 )
 
-echo Building for %GOOS%...
-go build -o %OUTPUT% ./src
+if /i "%~1"=="windows" (
+    set GOOS=windows
+) else if /i "%~1"=="linux" (
+    set GOOS=linux
+) else (
+    echo Invalid OS. Use windows or linux.
+    exit /b 1
+)
+
+set OUTPUT=build-%GOOS%-%GOARCH%
+if /i "%GOOS%"=="windows" (
+    set OUTPUT=%OUTPUT%.exe
+)
+
+echo Building %OUTPUT% for %GOOS%-%GOARCH%...
+
+set GOOS=%GOOS%
+set GOARCH=%GOARCH%
+
+go build -o .\src\%OUTPUT%
 
 if %ERRORLEVEL% NEQ 0 (
     echo Build failed!
