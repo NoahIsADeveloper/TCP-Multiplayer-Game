@@ -158,8 +158,7 @@ func scLobbyList(conn net.Conn) error {
 		appendVarInt(&data, int(lobby.Host))
 
 		appendVarInt(&data, len(lobby.players))
-		for clientId, player := range(lobby.players) {
-			appendVarInt(&data, int(clientId))
+		for _, player := range(lobby.players) {
 			appendString(&data, player.Name)
 		}
 	}
