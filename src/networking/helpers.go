@@ -92,7 +92,7 @@ func decodeVarIntFromBytes(data []byte) (int, int) {
 
 func sendPacket(conn net.Conn, packetID int, data []byte) error {
 	if *globals.DebugShowOutgoing {
-		fmt.Println("Sending packet ID %d", packetID)
+		fmt.Printf("Sending packet ID %d\n", packetID)
 	}
 
 	encodedID := encodeVarInt(packetID)
