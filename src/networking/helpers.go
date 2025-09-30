@@ -39,12 +39,12 @@ func readPacket(conn net.Conn) (int, []byte, error) {
 		}
 		totalRead += read
 	}
-	
+
 	packetID, idBytes := decodeVarIntFromBytes(packetData)
 	if idBytes == 0 {
 		return 0, nil, fmt.Errorf("invalid packet ID")
 	}
-	
+
 	data := packetData[idBytes:]
 	return packetID, data, nil
 }
@@ -75,7 +75,7 @@ func decodeVarIntFromBytes(data []byte) (int, int) {
 	var result int
 	var shift uint
 	var bytesRead int
-	
+
 	for index, reading := range data {
 		result |= int(reading & 0x7F) << shift
 		bytesRead = index + 1
@@ -189,9 +189,11 @@ func readString(data []byte, offset *int) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	if length < 0 || *offset+length > len(data) {
 		return "", fmt.Errorf("string: invalid length %d", length)
 	}
+
 	str := string(data[*offset : *offset+length])
 	*offset += length
 	return str, nil
@@ -201,8 +203,10 @@ func readPosition(data []byte, offset *int) (uint16, uint16, error) {
 	if *offset + 4 > len(data) {
 		return 0, 0, fmt.Errorf("position: not enough data")
 	}
+
 	x := binary.BigEndian.Uint16(data[*offset : *offset+2])
 	y := binary.BigEndian.Uint16(data[*offset+2 : *offset+4])
+
 	*offset += 4
 	return x, y, nil
 }
