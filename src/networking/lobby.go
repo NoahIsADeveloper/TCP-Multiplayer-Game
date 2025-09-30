@@ -26,6 +26,14 @@ func (lobby *Lobby) RemovePlayer(clientId clientId) {
 	delete(lobby.players, clientId)
 	delete(lobby.connections, clientId)
 	delete(JoinedLobbies, clientId)
+
+	if len(lobby.players) == 0 {
+		delete(Lobbies, lobby.ID)
+	} else if lobby.Host == clientId {
+		for newHost := range lobby.players {
+			lobby.Host = newHost
+		}
+	}
 }
 
 func (lobby *Lobby) AddPlayer(clientId clientId, name string, conn net.Conn) {
