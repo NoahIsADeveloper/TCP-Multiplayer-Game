@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"encoding/binary"
+	"potato-bones/src/globals"
 )
 
 const PACKET_MAX_SIZE = 1_000_000
@@ -90,6 +91,10 @@ func decodeVarIntFromBytes(data []byte) (int, int) {
 }
 
 func sendPacket(conn net.Conn, packetID int, data []byte) error {
+	if *globals.DebugShowOutgoing {
+		fmt.Println("Sending packet ID %d", packetID)
+	}
+
 	encodedID := encodeVarInt(packetID)
 	packet := append(encodedID, data...)
 	length := encodeVarInt(len(packet))

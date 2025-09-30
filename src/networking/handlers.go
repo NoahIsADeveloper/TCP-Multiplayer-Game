@@ -3,6 +3,7 @@ package networking
 import (
 	"fmt"
 	"net"
+	"potato-bones/src/globals"
 )
 
 const (
@@ -170,6 +171,10 @@ func scLobbyList(conn net.Conn) error {
 }
 
 func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []byte) error {
+	if *globals.DebugShowIncomming {
+		fmt.Printf("Incomming packet ID %d\n", packetID)
+	}
+
 	switch packetID {
 	case CS_JOIN: // Join (fields ignored for now)
 		return csJoinRequest(conn, clientId, packetData)
