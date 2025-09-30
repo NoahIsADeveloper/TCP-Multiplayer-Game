@@ -69,6 +69,8 @@ func scUpdatePlayers(lobby *Lobby) error {
 
 func getSyncData(lobby *Lobby) []byte {
 	var data []byte
+
+	appendVarInt(&data, int(lobby.Host))
 	players := lobby.players
 	appendVarInt(&data, len(players))
 
