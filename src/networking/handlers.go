@@ -41,20 +41,23 @@ func scJoinDeny(conn net.Conn, reason string) error {
 
 func scUpdatePlayers(lobby *Lobby) error {
 	var data []byte
+	var array []byte
+	var arraySize int = 0
 	players := lobby.players
-	appendVarInt(&data, len(players))
 
-	// TODO: Only send recently moved players
 	for clientId, player := range players {
 		value, ok := toUpdate[clientId]
 		if !ok || !value { continue }
 
-		appendVarInt(&data, int(clientId))
+		appendVarInt(&array, int(clientId))
 		x, y := player.GetPosition()
-		appendPosition(&data, x, y)
-
+		appendPosition(&array, x, y)
+		arraySize++
 		toUpdate[clientId] = false
 	}
+
+	appendVarInt(&data, arraySize)
+	data = append(data, array...)
 
 	return sendPacketToAll(SC_UPDATE_PLAYERS, data)
 }
@@ -119,13 +122,10 @@ func csMove(clientId clientId, packetData []byte) error {
 	lobby, ok := GetLobbyFromClient(clientId)
 	if !ok { return fmt.Errorf("cannot find client %d in a lobby", clientId) }
 
-	player, conn, err := lobby.GetClientData(clientId)
+	player, _, err := lobby.GetClientData(clientId)
 	if err != nil { return err }
-	if x == player.X && y == player.Y { return nil}
-	if !player.InRange(x, y, 100) { // More than 100 units in a single packet
-		scKickPlayer(conn, "You were moving too fast!")
-		return fmt.Errorf("client %d was moving too fast", clientId)
-	}
+	plrX, plrY := player.GetPosition()
+	if x == plrX && y == plrY { return nil}
 
 	player.Move(x, y)
 	toUpdate[clientId] = true
@@ -149,6 +149,24 @@ func csRequestClientId(conn net.Conn, clientId clientId) error {
 	return sendPacket(conn, SC_CLIENT_ID, encodeVarInt(int(clientId)))
 }
 
+func scLobbyList(conn net.Conn) error {
+	var data []byte
+	appendVarInt(&data, len(Lobbies))
+	for _, lobby := range(Lobbies) {
+		appendVarInt(&data, lobby.ID)
+		appendString(&data, lobby.Name)
+		appendVarInt(&data, int(lobby.Host))
+
+		appendVarInt(&data, len(lobby.players))
+		for clientId, player := range(lobby.players) {
+			appendVarInt(&data, int(clientId))
+			appendString(&data, player.Name)
+		}
+	}
+
+	return sendPacket(conn, 0x08, data)
+}
+
 func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []byte) error {
 	switch packetID {
 	case CS_JOIN: // Join (fields ignored for now)
@@ -164,7 +182,7 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 	case CS_REQUEST_CLIENT_ID: // Request the client id
 		return csRequestClientId(conn, clientId)
 	case CS_REQUEST_LOBBY_LIST: // Request a list of lobbies
-		return nil
+		return scLobbyList(conn)
 	case CS_CREATE_LOBBY: // Request a lobby be created
 		var offset int = 0
 		lobbyName, err := readString(packetData, &offset)
