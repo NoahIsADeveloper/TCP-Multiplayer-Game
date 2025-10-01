@@ -3,79 +3,68 @@ package networking
 import (
 	"net"
 	"fmt"
-	"time"
+	"sync"
+	"potato-bones/src/utils"
+	"potato-bones/src/globals"
 )
 
-type clientId uint8
-var nextClientID clientId = 0
-var freeClientIDs = []clientId{}
-var connections = make(map[clientId]net.Conn)
+type clientID uint32
+var clientIdManager = utils.NewIDManager[clientID](clientID(*globals.MaxClients))
+var connections = make(map[clientID]*utils.SafeConn)
+var clientMutex sync.RWMutex
 
-func getID() clientId {
-	if (len(freeClientIDs) > 0) {
-		id := freeClientIDs[len(freeClientIDs)-1]
-		freeClientIDs = freeClientIDs[:len(freeClientIDs)-1]
-		return id
-	}
-	nextClientID++
-	return nextClientID - 1
+func addConnection(clientId clientID, sconn *utils.SafeConn) {
+	clientMutex.Lock(); defer clientMutex.Unlock()
+	connections[clientId] = sconn
 }
 
-func releaseID(id clientId) {
-	freeClientIDs = append(freeClientIDs, id)
-	lobby, ok := GetLobbyFromClient(id)
-	if ok { lobby.RemovePlayer(id) }
-	delete(connections, id)
-	delete(toUpdate, id)
-}
-
-func updatePlayersLoop(tickrate int) {
-	ticker := time.NewTicker(time.Second / time.Duration(tickrate))
-	defer ticker.Stop()
-
-	for range ticker.C {
-		for _, lobby := range(Lobbies) {
-			scUpdatePlayers(lobby)
-		}
-	}
+func removeConnection(clientId clientID) {
+	clientMutex.Lock(); defer clientMutex.Unlock()
+	delete(connections, clientId)
 }
 
 func StartUpdateLoop(tickrate int) {
-	go updatePlayersLoop(tickrate)
+	// Nothing for now
 }
 
-func HandleClient(conn net.Conn) {
-	id := getID()
-	connections[id] = conn
+func HandleClient(conn net.Conn) error {
+	sconn := utils.NewSafeConn(conn)
+	clientId, ok := clientIdManager.Get()
+	if !ok {
+		conn.Close();
+		return fmt.Errorf("couldn't get a client id for %s", conn.RemoteAddr())
+	}
+	addConnection(clientId, sconn)
 
-	defer fmt.Printf("Client %d connection closed.\n", id)
-	defer conn.Close()
-	defer releaseID(id)
-	defer func()  {
-		lobby, ok := JoinedLobbies[id]
+	defer fmt.Printf("Client %d connection closed.\n", clientId)
+	defer sconn.Close()
+	defer clientIdManager.Release(clientId)
+	defer removeConnection(clientId)
+	defer func() {
+		lobby, ok := GetLobbyFromClient(clientId)
 		if ok {
-			lobby.RemovePlayer(id)
+			lobby.RemovePlayer(clientId)
 		}
 	}()
 	defer func() {
-		if r := recover(); r != nil {
-			fmt.Printf("Recovered from panic for client %d: %v\n", id, r)
+		if panic := recover(); panic != nil {
+			fmt.Printf("Recovered from panic for client %d: %v\n", clientId, panic)
 		}
 	}()
 
-	fmt.Printf("Client %d connected from %s.\n", id, conn.RemoteAddr().String())
+	fmt.Printf("Client %d connected from %s.\n", clientId, conn.RemoteAddr().String())
 
 	for {
-		packetID, packetData, err := readPacket(conn)
+		packetID, packetData, err := sconn.ReadPacket()
 		if err != nil {
-			fmt.Printf("Couldn't read packet from client %d, encountered error %v.\n", id, err)
-			return
+			fmt.Printf("Couldn't read packet from client %d, encountered error %v.\n", clientId, err)
+			return err
 		}
 
-		err = handlePacket(conn, id, packetID, packetData)
+		err = HandlePacket(packetData)
 		if err != nil {
-			fmt.Printf("Couldn't handle packet from client %d id %d, encountered error %v.\n", id, packetID, err)
-			return
+			fmt.Printf("Couldn't handle packet from client %d id %d, encountered error %v.\n", clientId, packetID, err)
+			return err
 		}
 	}
 }

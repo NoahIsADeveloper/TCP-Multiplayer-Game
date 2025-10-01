@@ -13,8 +13,10 @@ func parseFlags() {
 	globals.Host = flag.String("host", "0.0.0.0", "Host address to bind to")
 	globals.Tickrate = flag.Int("tickrate", 20, "Server TPS")
 	globals.MaxEntities = flag.Int("max-entities", 255, "Max Entities per environment")
+	globals.MaxClients = flag.Int("max-clients", 255, "Max Clients per environment")
+	globals.MaxLobbies = flag.Int("max-lobbies", 255, "Max Lobbies")
+	globals.MaxPacketSize = flag.Int("max-packet-size", 255, "Max packet size in bytes")
 	globals.GameSpeed = flag.Float64("gamespeed", 1, "Game speed multiplier")
-
 	globals.DebugShowOutgoing = flag.Bool("debug-outgoing", false, "Print outgoing packets")
 	globals.DebugShowIncoming = flag.Bool("debug-incoming", false, "Print incoming packets")
 	globals.DebugLobbyInfo = flag.Bool("debug-lobby", false, "Print lobby updates")

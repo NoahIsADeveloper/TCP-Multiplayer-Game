@@ -2,122 +2,149 @@ package networking
 
 import (
 	"potato-bones/src/globals"
+	"potato-bones/src/utils"
 	"potato-bones/src/environment/entities"
 	"fmt"
-	"net"
+	"sync"
 )
 
-var Lobbies = make(map[int]*Lobby)
-var JoinedLobbies = make(map[clientId]*Lobby)
+type serverID uint32
+var lobbyMutex sync.RWMutex
+var lobbies = make(map[serverID]*Lobby)
+var joinedLobbies = make(map[clientID]*Lobby)
+var lobbyIdManager = utils.NewIDManager[serverID](serverID(*globals.MaxLobbies))
 
 type Lobby struct{
-	Name string
-	Host clientId
-	ID int
+	name string
+	host clientID
+	id serverID
 
-	players map[clientId]*entities.Player
-	connections map[clientId]net.Conn
+	players map[clientID]*entities.Player
+	connections map[clientID]*utils.SafeConn
+
+	mutex sync.RWMutex
 }
 
 func (lobby *Lobby) Rename(name string) {
-	lobby.Name = name
+	lobby.mutex.Lock(); defer lobby.mutex.Unlock()
+
+	lobby.name = name
 }
 
-func (lobby *Lobby) RemovePlayer(clientId clientId) {
+func (lobby *Lobby) Release() {
+	lobbyIdManager.Release(serverID(lobby.id))
+}
+
+func (lobby *Lobby) RemovePlayer(clientId clientID) {
+	lobby.mutex.Lock(); defer lobby.mutex.Unlock()
+
 	delete(lobby.players, clientId)
 	delete(lobby.connections, clientId)
-	delete(JoinedLobbies, clientId)
+	delete(joinedLobbies, clientId)
 
 	if len(lobby.players) == 0 {
-		delete(Lobbies, lobby.ID)
-	} else if lobby.Host == clientId {
+		delete(lobbies, lobby.id)
+	} else if lobby.host == clientId {
 		for newHost := range lobby.players {
-			lobby.Host = newHost
+			lobby.host = newHost
 			break
 		}
 
-		scLobbyInfoToAll(lobby)
+		//TODO sync lobby
 	}
-	scSyncAllPlayers(lobby)
+	//TODO sync players
 
 	if *globals.DebugLobbyInfo {
-		fmt.Printf("[DEBUG] Removed client %d from lobby %d\n", clientId, lobby.ID)
+		fmt.Printf("[DEBUG] Removed client %d from lobby %d\n", clientId, lobby.id)
 	}
 }
 
-func (lobby *Lobby) AddPlayer(clientId clientId, name string, conn net.Conn) error {
-	_, ok := JoinedLobbies[clientId]
+func (lobby *Lobby) AddPlayer(clientId clientID, name string, sconn *utils.SafeConn) error {
+	lobby.mutex.Lock(); defer lobby.mutex.Unlock()
+
+	_, ok := joinedLobbies[clientId]
 	if ok {
 		return fmt.Errorf("cannot add client %d as they are already in a lobby", clientId)
 	}
 
-	lobby.players[clientId] = entities.CreatePlayer(name)
-	lobby.connections[clientId] = conn
-	JoinedLobbies[clientId] = lobby
+	lobby.players[clientId] = entities.NewPlayer(name)
+	lobby.connections[clientId] = sconn
+	joinedLobbies[clientId] = lobby
 
 	if *globals.DebugLobbyInfo {
-		fmt.Printf("[DEBUG] Added client %d to lobby %d\n", clientId, lobby.ID)
+		fmt.Printf("[DEBUG] Added client %d to lobby %d\n", clientId, lobby.id)
 	}
 
-	scSyncAllPlayers(lobby)
+	//TODO sync players
 	return nil
 }
 
-func (lobby *Lobby) GetClientData(clientId clientId) (*entities.Player, net.Conn, error) {
+func (lobby *Lobby) GetClientData(clientId clientID) (*entities.Player, *utils.SafeConn, error) {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
+
 	player, ok := lobby.players[clientId]
 	if !ok {
-		return nil, nil, fmt.Errorf("could not find player from client id %d in lobby %s", clientId, lobby.Name)
+		return nil, nil, fmt.Errorf("could not find player from client id %d in lobby %s", clientId, lobby.name)
 	}
-	conn, ok := lobby.connections[clientId]
+	sconn, ok := lobby.connections[clientId]
 	if !ok {
-		return nil, nil, fmt.Errorf("could not find connection from client id %d in lobby %s", clientId, lobby.Name)
+		return nil, nil, fmt.Errorf("could not find connection from client id %d in lobby %s", clientId, lobby.name)
 	}
 
-	return player, conn, nil
+	return player, sconn, nil
 }
 
-func (lobby *Lobby) HasClient(clientId clientId) (bool) {
+func (lobby *Lobby) HasClient(clientId clientID) (bool) {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
+
 	_, ok := lobby.connections[clientId]
 	return ok
 }
 
 func (lobby *Lobby) SendPacketToAll(packetID int, data []byte) []error {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
+
 	errList := []error{}
 
-	for _, conn := range(lobby.connections) {
-		err := sendPacket(conn, packetID, data)
+	for _, sconn := range(lobby.connections) {
+		err := sconn.SendPacket(packetID, data)
 		if err != nil { errList = append(errList, err) }
 	}
 
 	return errList
 }
 
-func GetLobbyFromClient(clientId clientId) (*Lobby, bool) {
-	lobby, ok := JoinedLobbies[clientId]
+func GetLobbyFromClient(clientId clientID) (*Lobby, bool) {
+	lobby, ok := joinedLobbies[clientId]
 	return lobby, ok
 }
 
-func CreateLobby(name string, host clientId) *Lobby {
-	lobbyID := int(host)
+func CreateLobby(name string, host clientID) (*Lobby, error) {
+	lobbyMutex.RLock(); defer lobbyMutex.RUnlock()
+
+	lobbyID, ok := lobbyIdManager.Get()
+	if !ok {
+		return nil, fmt.Errorf("max lobby limited reached")
+	}
 
 	for {
-		_, ok := Lobbies[lobbyID]
+		_, ok := lobbies[lobbyID]
 		if !ok { break }
 		lobbyID++
 	}
 
 	lobby := &Lobby{
-		Name: name,
-		Host: host,
-		ID: lobbyID,
-		players: make(map[clientId]*entities.Player),
-		connections: make(map[clientId]net.Conn),
+		name: name,
+		host: host,
+		id: lobbyID,
+		players: make(map[clientID]*entities.Player),
+		connections: make(map[clientID]*utils.SafeConn),
 	}
 
-	Lobbies[lobbyID] = lobby
+	lobbies[lobbyID] = lobby
 	if *globals.DebugLobbyInfo {
 		fmt.Printf("[DEBUG] Created lobby %s %d with host %d\n", name, lobbyID, host)
 	}
 
-	return lobby
+	return lobby, nil
 }
