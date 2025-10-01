@@ -129,8 +129,6 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 
 		err = scJoinAccept(conn, clientId, lobby)
 		if err != nil { return err }
-		errs := scSyncAllPlayers(lobby)
-		if len(errs) > 0 { return errs[0] } // TODO Better error handling
 
 		fmt.Printf("Client %d joined the game\n", clientId)
 	} else {
@@ -208,9 +206,6 @@ func csCreateLobby(conn net.Conn, clientId clientId, packetData []byte) error {
 	err = scJoinAccept(conn, clientId, lobby)
 	if err != nil { return err }
 
-	errs := scSyncAllPlayers(lobby)
-	if len(errs) > 0 { return errs[0] } // TODO Better error handling
-
 	return nil
 }
 
@@ -233,7 +228,6 @@ func csKickPlayer(host clientId, packetData []byte) error {
 
 	scKickPlayer(connections[toKick], reason)
 	lobby.RemovePlayer(toKick)
-	scSyncAllPlayers(lobby)
 
 	return nil
 }
@@ -252,9 +246,7 @@ func csChangeHost(host clientId, packetData []byte) error {
 	if !lobby.HasClient(toPromote) { return nil }
 
 	lobby.Host = toPromote
-	scLobbyInfo(connections[toPromote], toPromote)
-
-	return nil
+	return scLobbyInfoToAll(lobby)
 }
 
 func csLeaveLobby(clientId clientId) error {
@@ -269,6 +261,15 @@ func csLeaveLobby(clientId clientId) error {
 	return nil
 }
 
+func getLobbyData(lobby *Lobby) []byte {
+	data := []byte{}
+	appendVarInt(&data, lobby.ID)
+	appendString(&data, lobby.Name)
+	appendVarInt(&data, int(lobby.Host))
+
+	return data
+}
+
 func scLobbyInfo(conn net.Conn, clientId clientId) error {
 	lobby, ok := GetLobbyFromClient(clientId)
 	if !ok {
@@ -277,11 +278,19 @@ func scLobbyInfo(conn net.Conn, clientId clientId) error {
 	}
 
 	data := []byte{0x01}
-	appendVarInt(&data, lobby.ID)
-	appendString(&data, lobby.Name)
-	appendVarInt(&data, int(lobby.Host))
+	data = append(data, getLobbyData(lobby)...)
 
 	return sendPacket(conn, SC_LOBBY_INFO, data)
+}
+
+func scLobbyInfoToAll(lobby *Lobby) error {
+	data := []byte{0x01}
+	data = append(data, getLobbyData(lobby)...)
+
+	errs := lobby.SendPacketToAll(SC_LOBBY_INFO, data)
+	if len(errs) >= 0 { return errs[0] }
+
+	return nil
 }
 
 func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []byte) error {

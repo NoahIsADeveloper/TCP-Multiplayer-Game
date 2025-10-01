@@ -190,7 +190,7 @@ func readString(data []byte, offset *int) (string, error) {
 		return "", err
 	}
 
-	if length < 0 || *offset+length > len(data) {
+	if length < 0 || *offset + length > len(data) {
 		return "", fmt.Errorf("string: invalid length %d", length)
 	}
 
