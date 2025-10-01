@@ -72,6 +72,11 @@ func (lobby *Lobby) GetClientData(clientId clientId) (*entities.Player, net.Conn
 	return player, conn, nil
 }
 
+func (lobby *Lobby) HasClient(clientId clientId) (bool) {
+	_, ok := lobby.connections[clientId]
+	return ok
+}
+
 func (lobby *Lobby) SendPacketToAll(packetID int, data []byte) []error {
 	errList := []error{}
 

@@ -15,6 +15,9 @@ const (
 	CS_REQUEST_CLIENT_ID = 0x05
 	CS_REQUEST_LOBBY_LIST = 0x06
 	CS_CREATE_LOBBY = 0x07
+	CS_KICK_PLAYER = 0x08
+	CS_CHANGE_HOST = 0x09
+	CS_LEAVE_LOBBY = 0x0A
 )
 
 const (
@@ -210,6 +213,59 @@ func csCreateLobby(conn net.Conn, clientId clientId, packetData []byte) error {
 	return nil
 }
 
+func csKickPlayer(host clientId, packetData []byte) error {
+	lobby, ok := GetLobbyFromClient(host)
+
+	// TODO: Send client message on fail
+	if !ok { return nil }
+	if lobby.Host != host { return nil }
+
+	var offset int = 0
+	victimId, err := readVarInt(packetData, &offset)
+	if err != nil { return err }
+
+	toKick := clientId(victimId)
+	if !lobby.HasClient(toKick) { return nil }
+
+	reason, err := readString(packetData, &offset)
+	if err != nil { return err }
+
+	scKickPlayer(connections[toKick], reason)
+	lobby.RemovePlayer(toKick)
+
+	return nil
+}
+
+func csChangeHost(host clientId, packetData []byte) error {
+	lobby, ok := GetLobbyFromClient(host)
+
+	// TODO: Send client message on fail
+	if !ok { return nil }
+	if lobby.Host != host { return nil }
+
+	var offset int = 0
+	victimId, err := readVarInt(packetData, &offset)
+	if err != nil { return err }
+	toPromote := clientId(victimId)
+	if !lobby.HasClient(toPromote) { return nil }
+
+	lobby.Host = toPromote
+
+	return nil
+}
+
+func csLeaveLobby(conn net.Conn, clientId clientId) error {
+	lobby, ok := GetLobbyFromClient(clientId)
+
+	// TODO: Send client message on fail
+	if !ok { return nil }
+	if !lobby.HasClient(clientId) { return nil }
+
+	lobby.RemovePlayer(clientId)
+
+	return nil
+}
+
 func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []byte) error {
 	if *globals.DebugShowIncoming {
 		fmt.Printf("[DEBUG] Incomming packet ID %d\n", packetID)
@@ -232,6 +288,12 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 		return scLobbyList(conn)
 	case CS_CREATE_LOBBY: // Request a lobby be created
 		return csCreateLobby(conn, clientId, packetData)
+	case CS_KICK_PLAYER: // Kick a player
+		return csKickPlayer(clientId, packetData)
+	case CS_CHANGE_HOST: // Change the host
+		return csChangeHost(clientId, packetData)
+	case CS_LEAVE_LOBBY: // Leave the lobby
+		return csLeaveLobby(conn, clientId)
 	default:
 		return fmt.Errorf("received unknown packet id %d from client %d", packetID, clientId)
 	}
