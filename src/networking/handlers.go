@@ -60,8 +60,9 @@ func scUpdatePlayers(lobby *Lobby) error {
 		if !ok || !value { continue }
 
 		appendVarInt(&array, int(clientId))
-		x, y := player.GetPosition()
+		x, y, rotation := player.GetPosition()
 		appendPosition(&array, x, y)
+		appendRotation(&array, rotation)
 		arraySize++
 		toUpdate[clientId] = false
 	}
@@ -84,8 +85,6 @@ func getSyncData(lobby *Lobby) []byte {
 	for clientId, player := range players {
 		appendVarInt(&data, int(clientId))
 		appendString(&data, player.GetName())
-		x, y := player.GetPosition()
-		appendPosition(&data, x, y)
 	}
 
 	return data
@@ -142,16 +141,18 @@ func csMove(clientId clientId, packetData []byte) error {
 	x, y, err := readPosition(packetData, &offset)
 	if err != nil { return err }
 
+	rotation, err := readRotation(packetData, &offset)
+	if err != nil { return err }
+
 	lobby, ok := GetLobbyFromClient(clientId)
 	if !ok { return fmt.Errorf("cannot find client %d in a lobby", clientId) }
 
 	player, _, err := lobby.GetClientData(clientId)
 	if err != nil { return err }
-	plrX, plrY := player.GetPosition()
-	if x == plrX && y == plrY { return nil }
+	plrX, plrY, plrRot := player.GetPosition()
+	if x == plrX && y == plrY && plrRot == rotation { return nil }
 
-	//TODO Rotation
-	player.Move(x, y, 0)
+	player.Move(x, y, rotation)
 	toUpdate[clientId] = true
 
 	return nil

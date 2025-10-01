@@ -14,8 +14,8 @@ func (entity *Entity) Move(x uint16, y uint16, rotation float32) {
 	entity.rotation = rotation
 }
 
-func (entity *Entity) GetPosition() (uint16, uint16) {
-	return entity.x, entity.y
+func (entity *Entity) GetPosition() (uint16, uint16, float32) {
+	return entity.x, entity.y, entity.rotation
 }
 
 func (entity *Entity) InRange(x, y, distance uint16) bool {

@@ -221,10 +221,13 @@ func readRotation(data []byte, offset *int) (float32, error) {
 	raw := binary.BigEndian.Uint16(data[*offset : *offset+2])
 	*offset += 2
 
-	rotation := float32(raw) / 65536.0 * 360.0
+	// Rotation in radians
+	// 2π(raw / 65536.0)
+	// For Degrees
+	// 360(raw / 65536.0)
+	rotation := (float32(raw) / 65536.0) * 6.28318
 	return rotation, nil
 }
-
 
 func readPosition(data []byte, offset *int) (uint16, uint16, error) {
 	if *offset + 4 > len(data) {
