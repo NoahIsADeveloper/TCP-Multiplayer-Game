@@ -145,13 +145,6 @@ func appendPosition(list *[]byte, x uint16, y uint16) {
 }
 
 func appendRotation(list *[]byte, rotation float32) {
-	for rotation < 0 {
-		rotation += 360
-	}
-	for rotation >= 360 {
-		rotation -= 360
-	}
-
 	value := uint16(rotation / 6.28318 * 65536.0)
 	buf := make([]byte, 2)
 	binary.BigEndian.PutUint16(buf, value)
