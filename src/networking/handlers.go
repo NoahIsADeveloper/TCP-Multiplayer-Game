@@ -288,7 +288,7 @@ func scLobbyInfoToAll(lobby *Lobby) error {
 	data = append(data, getLobbyData(lobby)...)
 
 	errs := lobby.SendPacketToAll(SC_LOBBY_INFO, data)
-	if len(errs) >= 0 { return errs[0] }
+	if len(errs) > 0 { return errs[0] }
 
 	return nil
 }
