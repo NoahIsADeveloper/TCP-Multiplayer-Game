@@ -15,6 +15,10 @@ const (
 	CS_REQUEST_CLIENT_ID = 0x05
 	CS_REQUEST_LOBBY_LIST = 0x06
 	CS_CREATE_LOBBY = 0x07
+	CS_KICK_PLAYER = 0x08
+	CS_CHANGE_HOST = 0x09
+	CS_LEAVE_LOBBY = 0x0A
+	CS_LOBBY_SYNC = 0x0B
 )
 
 const (
@@ -27,6 +31,7 @@ const (
 	SC_KICK_PLAYER = 0x06
 	SC_CLIENT_ID = 0x07
 	SC_LOBBY_LIST = 0x08
+	SC_LOBBY_SYNC = 0x09
 )
 
 var toUpdate = make(map[clientId]bool)
@@ -73,7 +78,6 @@ func scUpdatePlayers(lobby *Lobby) error {
 func getSyncData(lobby *Lobby) []byte {
 	var data []byte
 
-	appendVarInt(&data, int(lobby.Host))
 	players := lobby.players
 	appendVarInt(&data, len(players))
 
@@ -124,8 +128,6 @@ func csJoinRequest(conn net.Conn, clientId clientId, packetData []byte) error {
 
 		err = scJoinAccept(conn, clientId, lobby)
 		if err != nil { return err }
-		errs := scSyncAllPlayers(lobby)
-		if len(errs) > 0 { return errs[0] } // TODO Better error handling
 
 		fmt.Printf("Client %d joined the game\n", clientId)
 	} else {
@@ -158,7 +160,6 @@ func scKickPlayer(conn net.Conn, reason string) error {
 	var data []byte
 	appendString(&data, reason)
 	err := sendPacket(conn, SC_KICK_PLAYER, data)
-	conn.Close()
 	return err
 }
 
@@ -204,8 +205,89 @@ func csCreateLobby(conn net.Conn, clientId clientId, packetData []byte) error {
 	err = scJoinAccept(conn, clientId, lobby)
 	if err != nil { return err }
 
-	errs := scSyncAllPlayers(lobby)
-	if len(errs) > 0 { return errs[0] } // TODO Better error handling
+	return nil
+}
+
+func csKickPlayer(host clientId, packetData []byte) error {
+	lobby, ok := GetLobbyFromClient(host)
+
+	// TODO: Send client message on fail
+	if !ok { return nil }
+	if lobby.Host != host { return nil }
+
+	var offset int = 0
+	victimId, err := readVarInt(packetData, &offset)
+	if err != nil { return err }
+
+	toKick := clientId(victimId)
+	if !lobby.HasClient(toKick) { return nil }
+
+	reason, err := readString(packetData, &offset)
+	if err != nil { return err }
+
+	scKickPlayer(connections[toKick], reason)
+	lobby.RemovePlayer(toKick)
+
+	return nil
+}
+
+func csChangeHost(host clientId, packetData []byte) error {
+	lobby, ok := GetLobbyFromClient(host)
+
+	// TODO: Send client message on fail
+	if !ok { return nil }
+	if lobby.Host != host { return nil }
+
+	var offset int = 0
+	victimId, err := readVarInt(packetData, &offset)
+	if err != nil { return err }
+	toPromote := clientId(victimId)
+	if !lobby.HasClient(toPromote) { return nil }
+
+	lobby.Host = toPromote
+	return scLobbyInfoToAll(lobby)
+}
+
+func csLeaveLobby(clientId clientId) error {
+	lobby, ok := GetLobbyFromClient(clientId)
+
+	// TODO: Send client message on fail
+	if !ok { return nil }
+	if !lobby.HasClient(clientId) { return nil }
+
+	lobby.RemovePlayer(clientId)
+
+	return nil
+}
+
+func getLobbyData(lobby *Lobby) []byte {
+	data := []byte{}
+	appendVarInt(&data, lobby.ID)
+	appendString(&data, lobby.Name)
+	appendVarInt(&data, int(lobby.Host))
+
+	return data
+}
+
+func scLobbyInfo(conn net.Conn, clientId clientId) error {
+	lobby, ok := GetLobbyFromClient(clientId)
+	if !ok {
+		sendPacket(conn, SC_LOBBY_SYNC, []byte{0x00})
+		return nil
+	}
+
+	data := []byte{0x01}
+	data = append(data, getLobbyData(lobby)...)
+
+	return sendPacket(conn, SC_LOBBY_SYNC, data)
+}
+
+func scLobbyInfoToAll(lobby *Lobby) error {
+	data := []byte{0x01}
+	data = append(data, getLobbyData(lobby)...)
+
+	errs := lobby.SendPacketToAll(SC_LOBBY_SYNC, data)
+	if len(errs) > 0 { return errs[0] }
 
 	return nil
 }
@@ -232,6 +314,14 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 		return scLobbyList(conn)
 	case CS_CREATE_LOBBY: // Request a lobby be created
 		return csCreateLobby(conn, clientId, packetData)
+	case CS_KICK_PLAYER: // Kick a player
+		return csKickPlayer(clientId, packetData)
+	case CS_CHANGE_HOST: // Change the host
+		return csChangeHost(clientId, packetData)
+	case CS_LEAVE_LOBBY: // Leave the lobby
+		return csLeaveLobby(clientId)
+	case CS_LOBBY_SYNC: // Request lobby info
+		return scLobbyInfo(conn, clientId)
 	default:
 		return fmt.Errorf("received unknown packet id %d from client %d", packetID, clientId)
 	}

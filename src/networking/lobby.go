@@ -35,7 +35,10 @@ func (lobby *Lobby) RemovePlayer(clientId clientId) {
 			lobby.Host = newHost
 			break
 		}
+
+		scLobbyInfoToAll(lobby)
 	}
+	scSyncAllPlayers(lobby)
 
 	if *globals.DebugLobbyInfo {
 		fmt.Printf("[DEBUG] Removed client %d from lobby %d\n", clientId, lobby.ID)
@@ -56,6 +59,7 @@ func (lobby *Lobby) AddPlayer(clientId clientId, name string, conn net.Conn) err
 		fmt.Printf("[DEBUG] Added client %d to lobby %d\n", clientId, lobby.ID)
 	}
 
+	scSyncAllPlayers(lobby)
 	return nil
 }
 
@@ -70,6 +74,11 @@ func (lobby *Lobby) GetClientData(clientId clientId) (*entities.Player, net.Conn
 	}
 
 	return player, conn, nil
+}
+
+func (lobby *Lobby) HasClient(clientId clientId) (bool) {
+	_, ok := lobby.connections[clientId]
+	return ok
 }
 
 func (lobby *Lobby) SendPacketToAll(packetID int, data []byte) []error {
