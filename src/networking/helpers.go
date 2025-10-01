@@ -144,6 +144,20 @@ func appendPosition(list *[]byte, x uint16, y uint16) {
 	*list = append(*list, buf...)
 }
 
+func appendRotation(list *[]byte, rotation float32) {
+	for rotation < 0 {
+		rotation += 360
+	}
+	for rotation >= 360 {
+		rotation -= 360
+	}
+
+	value := uint16(rotation / 360.0 * 65536.0)
+	buf := make([]byte, 2)
+	binary.BigEndian.PutUint16(buf, value)
+	*list = append(*list, buf...)
+}
+
 func readItemArray(data []byte, offset *int, read func(data []byte, offset *int) any) ([]any, error) {
 	length, err := readVarInt(data, offset)
 	if err != nil {
@@ -198,6 +212,19 @@ func readString(data []byte, offset *int) (string, error) {
 	*offset += length
 	return str, nil
 }
+
+func readRotation(data []byte, offset *int) (float32, error) {
+	if *offset+2 > len(data) {
+		return 0, fmt.Errorf("rotation: not enough data")
+	}
+
+	raw := binary.BigEndian.Uint16(data[*offset : *offset+2])
+	*offset += 2
+
+	rotation := float32(raw) / 65536.0 * 360.0
+	return rotation, nil
+}
+
 
 func readPosition(data []byte, offset *int) (uint16, uint16, error) {
 	if *offset + 4 > len(data) {

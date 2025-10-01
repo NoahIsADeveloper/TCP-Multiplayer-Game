@@ -83,7 +83,7 @@ func getSyncData(lobby *Lobby) []byte {
 
 	for clientId, player := range players {
 		appendVarInt(&data, int(clientId))
-		appendString(&data, player.Name)
+		appendString(&data, player.GetName())
 		x, y := player.GetPosition()
 		appendPosition(&data, x, y)
 	}
@@ -150,7 +150,8 @@ func csMove(clientId clientId, packetData []byte) error {
 	plrX, plrY := player.GetPosition()
 	if x == plrX && y == plrY { return nil }
 
-	player.Move(x, y)
+	//TODO Rotation
+	player.Move(x, y, 0)
 	toUpdate[clientId] = true
 
 	return nil
@@ -181,7 +182,7 @@ func scLobbyList(conn net.Conn) error {
 
 		appendVarInt(&data, len(lobby.players))
 		for _, player := range(lobby.players) {
-			appendString(&data, player.Name)
+			appendString(&data, player.GetName())
 		}
 	}
 
@@ -283,7 +284,7 @@ func scLobbyInfo(conn net.Conn, clientId clientId) error {
 }
 
 func scLobbyInfoToAll(lobby *Lobby) error {
-	data := []byte{0x01}
+	data := []byte{0x01}	
 	data = append(data, getLobbyData(lobby)...)
 
 	errs := lobby.SendPacketToAll(SC_LOBBY_SYNC, data)
