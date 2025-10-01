@@ -18,7 +18,7 @@ const (
 	CS_KICK_PLAYER = 0x08
 	CS_CHANGE_HOST = 0x09
 	CS_LEAVE_LOBBY = 0x0A
-	CS_LOBBY_INFO = 0x0B
+	CS_LOBBY_SYNC = 0x0B
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 	SC_KICK_PLAYER = 0x06
 	SC_CLIENT_ID = 0x07
 	SC_LOBBY_LIST = 0x08
-	SC_LOBBY_INFO = 0x09
+	SC_LOBBY_SYNC = 0x09
 )
 
 var toUpdate = make(map[clientId]bool)
@@ -272,21 +272,21 @@ func getLobbyData(lobby *Lobby) []byte {
 func scLobbyInfo(conn net.Conn, clientId clientId) error {
 	lobby, ok := GetLobbyFromClient(clientId)
 	if !ok {
-		sendPacket(conn, SC_LOBBY_INFO, []byte{0x00})
+		sendPacket(conn, SC_LOBBY_SYNC, []byte{0x00})
 		return nil
 	}
 
 	data := []byte{0x01}
 	data = append(data, getLobbyData(lobby)...)
 
-	return sendPacket(conn, SC_LOBBY_INFO, data)
+	return sendPacket(conn, SC_LOBBY_SYNC, data)
 }
 
 func scLobbyInfoToAll(lobby *Lobby) error {
 	data := []byte{0x01}
 	data = append(data, getLobbyData(lobby)...)
 
-	errs := lobby.SendPacketToAll(SC_LOBBY_INFO, data)
+	errs := lobby.SendPacketToAll(SC_LOBBY_SYNC, data)
 	if len(errs) > 0 { return errs[0] }
 
 	return nil
@@ -320,7 +320,7 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 		return csChangeHost(clientId, packetData)
 	case CS_LEAVE_LOBBY: // Leave the lobby
 		return csLeaveLobby(clientId)
-	case CS_LOBBY_INFO: // Request lobby info
+	case CS_LOBBY_SYNC: // Request lobby info
 		return scLobbyInfo(conn, clientId)
 	default:
 		return fmt.Errorf("received unknown packet id %d from client %d", packetID, clientId)
