@@ -9,9 +9,15 @@ import (
 )
 
 type clientID uint32
-var clientIdManager = utils.NewIDManager[clientID](clientID(*globals.MaxClients))
+var clientIdManager *utils.IDManager[clientID]
 var connections = make(map[clientID]*utils.SafeConn)
 var clientMutex sync.RWMutex
+
+func InitNetworking() {
+	clientIdManager = utils.NewIDManager(clientID(*globals.MaxClients))
+
+	initLobby()
+}
 
 func addConnection(clientId clientID, sconn *utils.SafeConn) {
 	clientMutex.Lock(); defer clientMutex.Unlock()
@@ -61,7 +67,7 @@ func HandleClient(conn net.Conn) error {
 			return err
 		}
 
-		err = HandlePacket(packetData)
+		err = HandlePacket(sconn, clientId, packetID, packetData)
 		if err != nil {
 			fmt.Printf("Couldn't handle packet from client %d id %d, encountered error %v.\n", clientId, packetID, err)
 			return err

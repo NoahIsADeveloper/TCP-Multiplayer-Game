@@ -42,8 +42,8 @@ func (manager *IDManager[ID]) Release(id ID) {
 
 func NewIDManager[ID IDType](max ID) *IDManager[ID] {
 	return &IDManager[ID]{
-		nextID:  0,
+		nextID: 0,
 		freeIDs: []ID{},
-		maxID:   max,
+		maxID: max,
 	}
 }

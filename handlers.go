@@ -1,37 +1,9 @@
-package networking
+package not_a_package
 
 import (
 	"fmt"
 	"net"
 	"potato-bones/src/globals"
-)
-
-const (
-	CS_JOIN = 0x00
-	CS_MOVE = 0x01
-	CS_PING = 0x02
-	CS_PONG = 0x03
-	CS_REQUEST_SYNC = 0x04
-	CS_REQUEST_CLIENT_ID = 0x05
-	CS_REQUEST_LOBBY_LIST = 0x06
-	CS_CREATE_LOBBY = 0x07
-	CS_KICK_PLAYER = 0x08
-	CS_CHANGE_HOST = 0x09
-	CS_LEAVE_LOBBY = 0x0A
-	CS_LOBBY_SYNC = 0x0B
-)
-
-const (
-	SC_JOIN_ACCEPT = 0x00
-	SC_JOIN_DENY = 0x01
-	SC_PING = 0x02
-	SC_PONG = 0x03
-	SC_UPDATE_PLAYERS = 0x04
-	SC_SYNC_PLAYERS = 0x05
-	SC_KICK_PLAYER = 0x06
-	SC_CLIENT_ID = 0x07
-	SC_LOBBY_LIST = 0x08
-	SC_LOBBY_SYNC = 0x09
 )
 
 var toUpdate = make(map[clientId]bool)
@@ -74,20 +46,6 @@ func scUpdatePlayers(lobby *Lobby) error {
 	if len(errs) > 0 { return errs[0] }
 
 	return nil
-}
-
-func getSyncData(lobby *Lobby) []byte {
-	var data []byte
-
-	players := lobby.players
-	appendVarInt(&data, len(players))
-
-	for clientId, player := range players {
-		appendVarInt(&data, int(clientId))
-		appendString(&data, player.GetName())
-	}
-
-	return data
 }
 
 func scSyncPlayers(conn net.Conn, clientId clientId) error {

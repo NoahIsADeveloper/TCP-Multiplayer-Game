@@ -5,19 +5,16 @@ type Player struct{
 	name string
 }
 
-func (player *Player) Rename(name string) {
-	player.name = name
-}
-
 func (player *Player) GetName() string {
-	return  player.name
+	player.mutex.RLock(); defer player.mutex.RUnlock()
+	return player.name
 }
 
 func NewPlayer(name string) *Player {
 	player := &Player{
         Entity: *NewEntity(),
+		name: name,
     }
-	player.Rename(name)
 	player.Move(1 << 15, 1 << 15, 0)
 
 	return player

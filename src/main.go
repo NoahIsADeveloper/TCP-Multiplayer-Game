@@ -31,6 +31,7 @@ func main() {
 	if (err != nil) { panic(err) }
 	fmt.Println("Server running on " + *globals.Host + ":" + fmt.Sprint(*globals.Port))
 
+	networking.InitNetworking()
 	networking.StartUpdateLoop(*globals.Tickrate)
 
 	for {

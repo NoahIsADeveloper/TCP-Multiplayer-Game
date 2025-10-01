@@ -8,21 +8,25 @@ import (
 	"sync"
 )
 
-type serverID uint32
+type lobbyID uint32
 var lobbyMutex sync.RWMutex
-var lobbies = make(map[serverID]*Lobby)
+var lobbies = make(map[lobbyID]*Lobby)
 var joinedLobbies = make(map[clientID]*Lobby)
-var lobbyIdManager = utils.NewIDManager[serverID](serverID(*globals.MaxLobbies))
+var lobbyIdManager *utils.IDManager[lobbyID]
 
 type Lobby struct{
 	name string
 	host clientID
-	id serverID
+	id lobbyID
 
 	players map[clientID]*entities.Player
 	connections map[clientID]*utils.SafeConn
 
 	mutex sync.RWMutex
+}
+
+func initLobby() {
+	lobbyIdManager = utils.NewIDManager(lobbyID(*globals.MaxLobbies))
 }
 
 func (lobby *Lobby) Rename(name string) {
@@ -32,7 +36,7 @@ func (lobby *Lobby) Rename(name string) {
 }
 
 func (lobby *Lobby) Release() {
-	lobbyIdManager.Release(serverID(lobby.id))
+	lobbyIdManager.Release(lobbyID(lobby.id))
 }
 
 func (lobby *Lobby) RemovePlayer(clientId clientID) {
@@ -115,6 +119,8 @@ func (lobby *Lobby) SendPacketToAll(packetID int, data []byte) []error {
 }
 
 func GetLobbyFromClient(clientId clientID) (*Lobby, bool) {
+	lobbyMutex.RLock(); defer lobbyMutex.RUnlock()
+
 	lobby, ok := joinedLobbies[clientId]
 	return lobby, ok
 }
