@@ -18,6 +18,7 @@ const (
 	CS_KICK_PLAYER = 0x08
 	CS_CHANGE_HOST = 0x09
 	CS_LEAVE_LOBBY = 0x0A
+	CS_LOBBY_INFO = 0x0B
 )
 
 const (
@@ -30,6 +31,7 @@ const (
 	SC_KICK_PLAYER = 0x06
 	SC_CLIENT_ID = 0x07
 	SC_LOBBY_LIST = 0x08
+	SC_LOBBY_INFO = 0x09
 )
 
 var toUpdate = make(map[clientId]bool)
@@ -161,7 +163,6 @@ func scKickPlayer(conn net.Conn, reason string) error {
 	var data []byte
 	appendString(&data, reason)
 	err := sendPacket(conn, SC_KICK_PLAYER, data)
-	conn.Close()
 	return err
 }
 
@@ -232,6 +233,7 @@ func csKickPlayer(host clientId, packetData []byte) error {
 
 	scKickPlayer(connections[toKick], reason)
 	lobby.RemovePlayer(toKick)
+	scSyncAllPlayers(lobby)
 
 	return nil
 }
@@ -250,11 +252,12 @@ func csChangeHost(host clientId, packetData []byte) error {
 	if !lobby.HasClient(toPromote) { return nil }
 
 	lobby.Host = toPromote
+	scLobbyInfo(connections[toPromote], toPromote)
 
 	return nil
 }
 
-func csLeaveLobby(conn net.Conn, clientId clientId) error {
+func csLeaveLobby(clientId clientId) error {
 	lobby, ok := GetLobbyFromClient(clientId)
 
 	// TODO: Send client message on fail
@@ -264,6 +267,21 @@ func csLeaveLobby(conn net.Conn, clientId clientId) error {
 	lobby.RemovePlayer(clientId)
 
 	return nil
+}
+
+func scLobbyInfo(conn net.Conn, clientId clientId) error {
+	lobby, ok := GetLobbyFromClient(clientId)
+	if !ok {
+		sendPacket(conn, SC_LOBBY_INFO, []byte{0x00})
+		return nil
+	}
+
+	data := []byte{0x01}
+	appendVarInt(&data, lobby.ID)
+	appendString(&data, lobby.Name)
+	appendVarInt(&data, int(lobby.Host))
+
+	return sendPacket(conn, SC_LOBBY_INFO, data)
 }
 
 func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []byte) error {
@@ -293,7 +311,9 @@ func handlePacket(conn net.Conn, clientId clientId, packetID int, packetData []b
 	case CS_CHANGE_HOST: // Change the host
 		return csChangeHost(clientId, packetData)
 	case CS_LEAVE_LOBBY: // Leave the lobby
-		return csLeaveLobby(conn, clientId)
+		return csLeaveLobby(clientId)
+	case CS_LOBBY_INFO: // Request lobby info
+		return scLobbyInfo(conn, clientId)
 	default:
 		return fmt.Errorf("received unknown packet id %d from client %d", packetID, clientId)
 	}
