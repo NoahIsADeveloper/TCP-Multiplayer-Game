@@ -45,7 +45,7 @@ fi
 
 echo "Building $OUTPUT for $GOOS-$GOARCH..."
 
-GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$OUTPUT" ./src
+GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags="-s -w" -trimpath -o "$OUTPUT" ./src
 if [ $? -ne 0 ]; then
     echo "Build failed!"
     exit 1

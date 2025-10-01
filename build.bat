@@ -41,7 +41,7 @@ echo Building %OUTPUT% for %GOOS%-%GOARCH%...
 set GOOS=%GOOS%
 set GOARCH=%GOARCH%
 
-go build -o .\src\%OUTPUT%
+go build -ldflags="-s -w" -trimpath -o .\src\%OUTPUT%
 
 if %ERRORLEVEL% NEQ 0 (
     echo Build failed!
