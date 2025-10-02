@@ -13,7 +13,7 @@ func scUpdatePlayers(lobby *Lobby) error {
 
 	lobby.mutex.RLock()
 	for clientId, player := range(lobby.players) {
-		// check if player actually needs update
+		if !player.DoUpdate() { continue }
 		datatypes.AppendVarInt(&array, int(clientId))
 		x, y, rotation := player.GetPosition()
 		datatypes.AppendPosition(&array, x, y)
