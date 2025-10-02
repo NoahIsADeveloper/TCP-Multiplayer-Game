@@ -48,16 +48,6 @@ func scJoinDeny(sconn *utils.SafeConn, reason string) error {
 }
 
 // Requests
-func scSyncPlayer(sconn *utils.SafeConn, clientId clientID) error {
-	lobby, ok := GetLobbyFromClient(clientId)
-	if !ok {
-		return fmt.Errorf("scSyncPlayer cannot sync client %d as they are not in a lobby", clientId)
-	}
-
-	data := getSyncData(lobby)
-	return sconn.SendPacketTCP(SC_SYNC_PLAYER, data)
-}
-
 func scSyncClientId(sconn *utils.SafeConn, clientId clientID) error {
 	data := []byte{}
 	datatypes.AppendVarInt(&data, int(clientId))
@@ -74,23 +64,40 @@ func scSyncSessionId(sconn *utils.SafeConn, clientId clientID) error {
 	return sconn.SendPacketTCP(SC_SYNC_SESSION_ID, data)
 }
 
-func scSyncLobby(sconn *utils.SafeConn, clientId clientID) error {
+func scSyncPlayer(sconn *utils.SafeConn, clientId clientID) error {
 	lobby, ok := GetLobbyFromClient(clientId)
 	if !ok {
-		return fmt.Errorf("scSyncLobby cannot sync client %d as they are not in a lobby", clientId)
+		return fmt.Errorf("scSyncPlayer cannot sync client %d as they are not in a lobby", clientId)
 	}
 
-	data := getSyncData(lobby)
+	data := getPlayerSyncData(lobby)
 	return sconn.SendPacketTCP(SC_SYNC_PLAYER, data)
 }
 
-func scSyncEntireLobby(lobby *Lobby) error {
-	data := getSyncData(lobby)
+func scSyncLobbyPlayers(lobby *Lobby) error {
+	data := getPlayerSyncData(lobby)
 	lobby.SendPacketToAllTCP(SC_SYNC_PLAYER, data)
-
 	return nil
 }
 
+func scSyncLobby(sconn *utils.SafeConn, clientId clientID) error {
+	lobby, ok := GetLobbyFromClient(clientId)
+
+	if ok {
+		sconn.SendPacketTCP(SC_SYNC_LOBBY, []byte{0x00})
+	}
+
+	data := []byte{0x01}
+	data = append(data, getLobbySyncData(lobby)...)
+	return sconn.SendPacketTCP(SC_SYNC_LOBBY, data)
+}
+
+func scSyncEntireLobby(lobby *Lobby) error {
+	data := []byte{0x01}
+	data = append(data, getLobbySyncData(lobby)...)
+	lobby.SendPacketToAllTCP(SC_SYNC_PLAYER, data)
+	return nil
+}
 
 func scLobbyList(sconn *utils.SafeConn) error {
 	lobbyMutex.RLock();

@@ -16,6 +16,10 @@ func csLobbyJoin(sconn *utils.SafeConn, clientId clientID, packetData []byte) er
 	if err != nil { return err }
 
 	lobbyMutex.RLock()
+	_, ok := joinedLobbies[clientId]
+	if !ok {
+		return scJoinDeny(sconn, "You are already in a lobby.")
+	}
 	lobby, ok := lobbies[lobbyID(lobbyId)]
 	lobbyMutex.RUnlock()
 	if !ok {
@@ -119,6 +123,7 @@ func csLeaveLobby(clientId clientID) error {
 	if !lobby.HasClient(clientId) { return nil }
 
 	lobby.RemovePlayer(clientId)
+	scSyncLobbyPlayers(lobby)
 
 	return nil
 }

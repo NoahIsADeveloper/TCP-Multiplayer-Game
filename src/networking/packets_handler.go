@@ -51,7 +51,7 @@ const (
 	SC_UPDATE_PLAYERS = 0x04
 )
 
-func getSyncData(lobby *Lobby) []byte {
+func getPlayerSyncData(lobby *Lobby) []byte {
 	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
 
 	var data []byte
@@ -63,6 +63,17 @@ func getSyncData(lobby *Lobby) []byte {
 		datatypes.AppendVarInt(&data, int(clientId))
 		datatypes.AppendString(&data, player.GetName())
 	}
+
+	return data
+}
+
+func getLobbySyncData(lobby *Lobby) []byte {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
+
+	var data []byte
+	datatypes.AppendVarInt(&data, int(lobby.id))
+	datatypes.AppendString(&data, lobby.name)
+	datatypes.AppendVarInt(&data, int(lobby.host))
 
 	return data
 }
