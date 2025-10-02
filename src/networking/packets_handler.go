@@ -67,7 +67,7 @@ func HandlePacket(sconn *utils.SafeConn, clientId clientID, packetId int, packet
 	switch packetId {
 		// Handshake
 	case CS_PING:
-		return sconn.SendPacket(SC_PONG, packetData)
+		return sconn.SendPacketTCP(SC_PONG, packetData)
 	case CS_PONG:
 		return nil // TODO timeout type shit
 
@@ -80,6 +80,10 @@ func HandlePacket(sconn *utils.SafeConn, clientId clientID, packetId int, packet
 		return scSyncLobby(sconn, clientId)
 	case CS_REQUEST_LOBBY_LIST:
 		return scLobbyList(sconn)
+
+		// Lobby controls
+	case CS_LOBBY_CREATE:
+		return csLobbyCreate(sconn, clientId, packetData)
 	}
 
 	return nil

@@ -1,35 +1,36 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"net"
 	"potato-bones/src/globals"
 	"potato-bones/src/networking"
-	"flag"
-	"net"
-	"fmt"
 )
 
 func parseFlags() {
-	globals.Port = flag.Int("port", 30000, "Port to run the server on")
+	// Potatoes are 4th most grown crop, and there's 206 bones in a human body!
+	globals.Port = flag.Int("port", 4206, "Port to run the server on")
+
 	globals.Host = flag.String("host", "0.0.0.0", "Host address to bind to")
 	globals.Tickrate = flag.Int("tickrate", 20, "Server TPS")
 	globals.MaxEntities = flag.Int("max-entities", 255, "Max Entities per environment")
 	globals.MaxClients = flag.Int("max-clients", 255, "Max Clients per environment")
 	globals.MaxLobbies = flag.Int("max-lobbies", 255, "Max Lobbies")
-	globals.MaxPacketSize = flag.Int("max-packet-size", 255, "Max packet size in bytes")
+	globals.MaxPacketSize = flag.Int("max-packet-size", 255, "Max incoming packet size in bytes")
 	globals.GameSpeed = flag.Float64("gamespeed", 1, "Game speed multiplier")
 	globals.DebugShowOutgoing = flag.Bool("debug-outgoing", false, "Print outgoing packets")
 	globals.DebugShowIncoming = flag.Bool("debug-incoming", false, "Print incoming packets")
 	globals.DebugLobbyInfo = flag.Bool("debug-lobby", false, "Print lobby updates")
+	globals.SessionLength = flag.Int("session-length", 1440, "How long before a session id expires in minutes")
 
 	flag.Parse()
 }
 
-func main() {
-	parseFlags()
-
+func HandleTCPServer() {
 	ln, err := net.Listen("tcp", *globals.Host + ":" + fmt.Sprint(*globals.Port))
 	if (err != nil) { panic(err) }
-	fmt.Println("Server running on " + *globals.Host + ":" + fmt.Sprint(*globals.Port))
+	fmt.Println("TCP Server running on " + *globals.Host + ":" + fmt.Sprint(*globals.Port))
 
 	networking.InitNetworking()
 	networking.StartUpdateLoop(*globals.Tickrate)
@@ -37,6 +38,36 @@ func main() {
 	for {
 		conn, err := ln.Accept()
 		if err != nil { return }
-		go networking.HandleClient(conn)
+		go networking.HandleTCPClient(conn)
 	}
+}
+
+func HandleUDPServer() {
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprint(*globals.Port))
+	if err != nil { panic(err) }
+
+	udpConn, err := net.ListenUDP("udp", addr)
+	if err != nil { panic(err) }
+	defer udpConn.Close()
+
+	fmt.Println("UDP Server running on " + *globals.Host + ":" + fmt.Sprint(*globals.Port))
+
+	buffer := make([]byte, *globals.MaxPacketSize)
+	for {
+		length, clientAddr, err := udpConn.ReadFromUDP(buffer)
+		if err != nil {
+			fmt.Println("Error reading:", err)
+			continue
+		}
+
+		data := buffer[:length]
+		go networking.HandleUDPPacket(clientAddr, data)
+	}
+}
+
+func main() {
+	parseFlags()
+
+	go HandleUDPServer()
+	go HandleTCPServer()
 }

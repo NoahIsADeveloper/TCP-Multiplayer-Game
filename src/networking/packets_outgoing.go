@@ -6,6 +6,7 @@ import (
 	"potato-bones/src/utils"
 )
 
+// Requests
 func scSyncPlayer(sconn *utils.SafeConn, clientId clientID) error {
 	lobby, ok := GetLobbyFromClient(clientId)
 	if !ok {
@@ -13,13 +14,13 @@ func scSyncPlayer(sconn *utils.SafeConn, clientId clientID) error {
 	}
 
 	data := getSyncData(lobby)
-	return sconn.SendPacket(SC_SYNC_PLAYER, data)
+	return sconn.SendPacketTCP(SC_SYNC_PLAYER, data)
 }
 
 func scSyncClientId(sconn *utils.SafeConn, clientId clientID) error {
 	data := []byte{}
 	datatypes.AppendVarInt(&data, int(clientId))
-	return sconn.SendPacket(SC_SYNC_CLIENT_ID, data)
+	return sconn.SendPacketTCP(SC_SYNC_CLIENT_ID, data)
 }
 
 func scSyncLobby(sconn *utils.SafeConn, clientId clientID) error {
@@ -29,7 +30,7 @@ func scSyncLobby(sconn *utils.SafeConn, clientId clientID) error {
 	}
 
 	data := getSyncData(lobby)
-	return sconn.SendPacket(SC_SYNC_PLAYER, data)
+	return sconn.SendPacketTCP(SC_SYNC_PLAYER, data)
 }
 
 func scLobbyList(sconn *utils.SafeConn) error {
@@ -53,5 +54,5 @@ func scLobbyList(sconn *utils.SafeConn) error {
 		lobby.mutex.RUnlock()
 	}
 
-	return sconn.SendPacket(SC_LOBBY_LIST, data)
+	return sconn.SendPacketTCP(SC_LOBBY_LIST, data)
 }

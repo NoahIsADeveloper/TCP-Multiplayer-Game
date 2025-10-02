@@ -9,8 +9,11 @@ import (
 )
 
 type SafeConn struct {
-    conn net.Conn
-    mutex sync.Mutex
+    tcpConn net.Conn
+	udpAddr net.UDPAddr
+
+	session *Session
+    mutex sync.RWMutex
 }
 
 //TODO lpease find a better way to impliemnt this hoy fucking shit
@@ -19,7 +22,7 @@ func DecodeVarInt(sconn *SafeConn) (int, error) {
 	var shift uint
 	bfr := make([]byte, 1)
 	for {
-		_, err := sconn.Read(bfr)
+		_, err := sconn.ReadTCP(bfr)
 		if err != nil {
 			return 0, err
 		}
@@ -36,21 +39,21 @@ func DecodeVarInt(sconn *SafeConn) (int, error) {
 	return result, nil
 }
 
-func (sconn *SafeConn) Write(data []byte) (int, error) {
-    sconn.mutex.Lock()
-    defer sconn.mutex.Unlock()
-    return sconn.conn.Write(data)
+func (sconn *SafeConn) WriteTCP(data []byte) (int, error) {
+    sconn.mutex.Lock(); defer sconn.mutex.Unlock()
+    return sconn.tcpConn.Write(data)
 }
 
-func (sconn *SafeConn) Read(data []byte) (int, error) {
-	return sconn.conn.Read(data)
+func (sconn *SafeConn) ReadTCP(data []byte) (int, error) {
+	sconn.mutex.RLock(); defer sconn.mutex.RUnlock()
+	return sconn.tcpConn.Read(data)
 }
 
 func (sconn *SafeConn) Close() error {
-	return sconn.conn.Close()
+	return sconn.tcpConn.Close()
 }
 
-func (sconn *SafeConn) SendPacket(packetID int, data []byte) error {
+func (sconn *SafeConn) SendPacketTCP(packetID int, data []byte) error {
 	if *globals.DebugShowOutgoing {
 		fmt.Printf("[DEBUG] Sending packet ID %d\n", packetID)
 	}
@@ -61,11 +64,11 @@ func (sconn *SafeConn) SendPacket(packetID int, data []byte) error {
 	datatypes.AppendVarInt(&packet, packetID)
 	packet = append(packet, data...)
 	datatypes.AppendVarInt(&length, len(packet))
-	_, err := sconn.Write(append(length, packet...))
+	_, err := sconn.WriteTCP(append(length, packet...))
 	return err
 }
 
-func (sconn *SafeConn) ReadPacket() (int, []byte, error) {
+func (sconn *SafeConn) ReadPacketTCP() (int, []byte, error) {
 	length, err := DecodeVarInt(sconn)
 	if err != nil {
 		return 0, nil, err
@@ -82,7 +85,7 @@ func (sconn *SafeConn) ReadPacket() (int, []byte, error) {
 	packetData := make([]byte, length)
 	totalRead := 0
 	for totalRead < length {
-		read, err := sconn.Read(packetData[totalRead:])
+		read, err := sconn.ReadTCP(packetData[totalRead:])
 		if err != nil {
 			return 0, nil, err
 		}
@@ -100,6 +103,14 @@ func (sconn *SafeConn) ReadPacket() (int, []byte, error) {
 	return packetID, data, nil
 }
 
-func NewSafeConn(conn net.Conn) *SafeConn {
-	return &SafeConn{conn: conn}
+func (sconn *SafeConn) AddUDPAddr(addr net.UDPAddr) {
+    sconn.mutex.Lock(); defer sconn.mutex.Unlock()
+	sconn.udpAddr = addr
+}
+
+func NewSafeConn(tcpConn net.Conn, session *Session) *SafeConn {
+	return &SafeConn{
+		tcpConn: tcpConn,
+		session: session,
+	}
 }
