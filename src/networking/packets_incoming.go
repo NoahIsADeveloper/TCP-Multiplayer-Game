@@ -68,3 +68,57 @@ func csMove(clientId clientID, packetData []byte) error {
 
 	return nil
 }
+
+func csLobbyKick(host clientID, packetData []byte) error {
+	lobby, ok := GetLobbyFromClient(host)
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
+
+	// TODO: Send client message on fail
+	if !ok { return nil }
+	if lobby.host != host { return nil }
+
+	var offset int = 0
+	victimId, err := datatypes.ReadVarInt(packetData, &offset)
+	if err != nil { return err }
+
+	toKick := clientID(victimId)
+	if !lobby.HasClient(toKick) { return nil }
+
+	reason, err := datatypes.ReadString(packetData, &offset)
+	if err != nil { return err }
+
+	scKickPlayer(connectionsFromClientId[toKick], reason)
+	lobby.RemovePlayer(toKick)
+
+	return nil
+}
+
+func csLobbyPromote(host clientID, packetData []byte) error {
+	lobby, ok := GetLobbyFromClient(host)
+	lobby.mutex.Lock(); defer lobby.mutex.Unlock()
+
+	// TODO: Send client message on fail
+	if !ok { return nil }
+	if lobby.host != host { return nil }
+
+	var offset int = 0
+	victimId, err := datatypes.ReadVarInt(packetData, &offset)
+	if err != nil { return err }
+	toPromote := clientID(victimId)
+	if !lobby.HasClient(toPromote) { return nil }
+	lobby.host = toPromote
+
+	// Update lobby info
+	return scSyncEntireLobby(lobby)
+}
+
+func csLeaveLobby(clientId clientID) error {
+	lobby, ok := GetLobbyFromClient(clientId)
+
+	if !ok { return nil }
+	if !lobby.HasClient(clientId) { return nil }
+
+	lobby.RemovePlayer(clientId)
+
+	return nil
+}

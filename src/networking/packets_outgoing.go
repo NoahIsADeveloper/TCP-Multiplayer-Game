@@ -84,6 +84,14 @@ func scSyncLobby(sconn *utils.SafeConn, clientId clientID) error {
 	return sconn.SendPacketTCP(SC_SYNC_PLAYER, data)
 }
 
+func scSyncEntireLobby(lobby *Lobby) error {
+	data := getSyncData(lobby)
+	lobby.SendPacketToAllTCP(SC_SYNC_PLAYER, data)
+
+	return nil
+}
+
+
 func scLobbyList(sconn *utils.SafeConn) error {
 	lobbyMutex.RLock();
 
@@ -107,4 +115,11 @@ func scLobbyList(sconn *utils.SafeConn) error {
 
 	lobbyMutex.RUnlock();
 	return sconn.SendPacketTCP(SC_LOBBY_LIST, data)
+}
+
+func scKickPlayer(sconn *utils.SafeConn, reason string) error {
+	var data []byte
+	datatypes.AppendString(&data, reason)
+	err := sconn.SendPacketTCP(SC_LOBBY_KICK, data)
+	return err
 }

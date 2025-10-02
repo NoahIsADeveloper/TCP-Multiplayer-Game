@@ -90,6 +90,12 @@ func HandlePacket(sconn *utils.SafeConn, clientId clientID, packetId int, packet
 		return csLobbyJoin(sconn, clientId, packetData)
 	case CS_LOBBY_CREATE:
 		return csLobbyCreate(sconn, clientId, packetData)
+	case CS_LOBBY_KICK:
+		return csLobbyKick(clientId, packetData)
+	case CS_LOBBY_PROMOTE:
+		return csLobbyPromote(clientId, packetData)
+	case CS_LOBBY_LEAVE:
+		return csLeaveLobby(clientId)
 
 		// Playing
 	case CS_MOVE:
