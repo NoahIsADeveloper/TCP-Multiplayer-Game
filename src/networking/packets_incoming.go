@@ -18,6 +18,7 @@ func csLobbyCreate(sconn *utils.SafeConn, clientId clientID, packetData []byte) 
 	if err != nil { return err }
 
 	lobby.AddPlayer(clientId, username, sconn)
+	scJoinAccept(sconn, clientId, lobby)
 
 	return nil
 }

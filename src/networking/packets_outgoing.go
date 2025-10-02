@@ -6,6 +6,24 @@ import (
 	"potato-bones/src/utils"
 )
 
+//
+func scJoinAccept(sconn *utils.SafeConn, clientId clientID, lobby *Lobby) error {
+	var data []byte
+	lobby.mutex.RLock()
+	datatypes.AppendVarInt(&data, int(clientId))
+	datatypes.AppendVarInt(&data, int(lobby.id))
+	datatypes.AppendString(&data, lobby.name)
+	lobby.mutex.RUnlock()
+
+	return sconn.SendPacketTCP(SC_LOBBY_JOIN_ACCEPT, data)
+}
+
+func scJoinDeny(sconn *utils.SafeConn, reason string) error {
+	var data []byte
+	datatypes.AppendString(&data, reason)
+	return sconn.SendPacketTCP(SC_LOBBY_JOIN_ACCEPT, data)
+}
+
 // Requests
 func scSyncPlayer(sconn *utils.SafeConn, clientId clientID) error {
 	lobby, ok := GetLobbyFromClient(clientId)
