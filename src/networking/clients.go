@@ -9,6 +9,7 @@ import (
 	"potato-bones/src/networking/datatypes"
 	"potato-bones/src/utils"
 	"sync"
+	"time"
 )
 
 type clientID uint32
@@ -18,7 +19,9 @@ var clientIdManager *utils.IDManager[clientID]
 
 var connectionsFromClientId = make(map[clientID]*utils.SafeConn)
 var clientIdFromSessionId = make(map[string]clientID)
+var sessionIdFromClientId = make(map[clientID]string)
 var clientMutex sync.RWMutex
+var udpConn *net.UDPConn
 
 func InitNetworking() {
 	clientIdManager = utils.NewIDManager(clientID(*globals.MaxClients))
@@ -27,20 +30,39 @@ func InitNetworking() {
 	initLobby()
 }
 
+func SetUDPConn(conn *net.UDPConn) {
+	udpConn = conn
+}
+
 func addClient(sconn *utils.SafeConn, session *utils.Session, clientId clientID) {
 	clientMutex.Lock(); defer clientMutex.Unlock()
 	connectionsFromClientId[clientId] = sconn
 	clientIdFromSessionId[session.ID] = clientId
+	sessionIdFromClientId[clientId] = session.ID
 }
 
 func removeClient(clientId clientID, session *utils.Session) {
 	clientMutex.Lock(); defer clientMutex.Unlock()
 	delete(connectionsFromClientId, clientId)
 	delete(clientIdFromSessionId, session.ID)
+	delete(sessionIdFromClientId, clientId)
+}
+
+func updatePlayers(tickrate int) {
+	ticker := time.NewTicker(time.Duration(tickrate) * time.Second)
+    defer ticker.Stop()
+
+    for range ticker.C {
+		lobbyMutex.RLock()
+		for _, lobby := range(lobbies) {
+			scUpdatePlayers(lobby)
+		}
+		lobbyMutex.RUnlock()
+    }
 }
 
 func StartUpdateLoop(tickrate int) {
-	// Nothing for now
+	go updatePlayers(tickrate)
 }
 
 func HandleUDPPacket(addr *net.UDPAddr, data []byte) {

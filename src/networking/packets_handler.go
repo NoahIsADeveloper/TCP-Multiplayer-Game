@@ -12,6 +12,7 @@ const (
 
 	// Request data
 	CS_REQUEST_CLIENT_ID = 0x05
+	CS_REQUEST_SESSION_ID = 0x0C
 	CS_REQUEST_PLAYER_SYNC = 0x04
 	CS_REQUEST_LOBBY_LIST = 0x06
 	CS_REQUEST_LOBBY_SYNC = 0x0B
@@ -40,6 +41,7 @@ const (
 
 	// Sync
 	SC_SYNC_CLIENT_ID = 0x07
+	SC_SYNC_SESSION_ID = 0x0A
 	SC_SYNC_PLAYER = 0x05
 	SC_SYNC_LOBBY = 0x09
 
@@ -76,6 +78,8 @@ func HandlePacket(sconn *utils.SafeConn, clientId clientID, packetId int, packet
 		return scSyncPlayer(sconn, clientId)
 	case CS_REQUEST_CLIENT_ID:
 		return scSyncClientId(sconn, clientId)
+	case CS_REQUEST_SESSION_ID:
+		return scSyncSessionId(sconn, clientId)
 	case CS_REQUEST_LOBBY_SYNC:
 		return scSyncLobby(sconn, clientId)
 	case CS_REQUEST_LOBBY_LIST:
@@ -86,6 +90,10 @@ func HandlePacket(sconn *utils.SafeConn, clientId clientID, packetId int, packet
 		return csLobbyJoin(sconn, clientId, packetData)
 	case CS_LOBBY_CREATE:
 		return csLobbyCreate(sconn, clientId, packetData)
+
+		// Playing
+	case CS_MOVE:
+		return csMove(clientId, packetData)
 	}
 
 	return nil

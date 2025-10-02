@@ -105,18 +105,18 @@ func (lobby *Lobby) HasClient(clientId clientID) (bool) {
 	return ok
 }
 
-// func (lobby *Lobby) SendPacketToAll(packetID int, data []byte) []error {
-// 	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
 
-// 	errList := []error{}
+func (lobby *Lobby) SendPacketToAllUDP(packetId int, data []byte) {
+	for _, connection := range(lobby.connections) {
+		connection.SendPacketUDP(*udpConn, packetId, data)
+	}
+}
 
-// 	for _, sconn := range(lobby.connections) {
-// 		err := sconn.SendPacket(packetID, data)
-// 		if err != nil { errList = append(errList, err) }
-// 	}
-
-// 	return errList
-// }
+func (lobby *Lobby) SendPacketToAllTCP(packetId int, data []byte) {
+	for _, connection := range(lobby.connections) {
+		connection.SendPacketTCP(packetId, data)
+	}
+}
 
 func GetLobbyFromClient(clientId clientID) (*Lobby, bool) {
 	lobbyMutex.RLock(); defer lobbyMutex.RUnlock()

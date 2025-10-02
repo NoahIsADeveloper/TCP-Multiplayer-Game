@@ -6,6 +6,29 @@ import (
 	"potato-bones/src/utils"
 )
 
+func scUpdatePlayers(lobby *Lobby) error {
+	var data []byte
+	var array []byte
+	var arraySize int = 0
+
+	lobby.mutex.RLock()
+	for clientId, player := range(lobby.players) {
+		// check if player actually needs update
+		datatypes.AppendVarInt(&array, int(clientId))
+		x, y, rotation := player.GetPosition()
+		datatypes.AppendPosition(&array, x, y)
+		datatypes.AppendRotation(&array, rotation)
+		arraySize++
+	}
+	lobby.mutex.RUnlock()
+
+	datatypes.AppendVarInt(&data, arraySize)
+	data = append(data, array...)
+
+	lobby.SendPacketToAllUDP(SC_UPDATE_PLAYERS, data)
+	return nil
+}
+
 //
 func scJoinAccept(sconn *utils.SafeConn, clientId clientID, lobby *Lobby) error {
 	var data []byte
@@ -39,6 +62,16 @@ func scSyncClientId(sconn *utils.SafeConn, clientId clientID) error {
 	data := []byte{}
 	datatypes.AppendVarInt(&data, int(clientId))
 	return sconn.SendPacketTCP(SC_SYNC_CLIENT_ID, data)
+}
+
+func scSyncSessionId(sconn *utils.SafeConn, clientId clientID) error {
+	data := []byte{}
+
+	clientMutex.RLock()
+	datatypes.AppendString(&data, sessionIdFromClientId[clientId])
+	clientMutex.RUnlock()
+
+	return sconn.SendPacketTCP(SC_SYNC_SESSION_ID, data)
 }
 
 func scSyncLobby(sconn *utils.SafeConn, clientId clientID) error {

@@ -46,6 +46,7 @@ func HandleUDPServer() {
 	udpConn, err := net.ListenUDP("udp", addr)
 	if err != nil { panic(err) }
 	defer udpConn.Close()
+	networking.SetUDPConn(udpConn)
 
 	fmt.Println("UDP Server running on " + *globals.Host + ":" + fmt.Sprint(*globals.Port))
 

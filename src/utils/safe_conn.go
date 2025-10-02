@@ -39,6 +39,11 @@ func DecodeVarInt(sconn *SafeConn) (int, error) {
 	return result, nil
 }
 
+func (sconn *SafeConn) WriteUDP(conn net.UDPConn, data []byte) (int, error) {
+	sconn.mutex.Lock(); defer sconn.mutex.Unlock()
+	return conn.WriteTo(data, &sconn.udpAddr)
+}
+
 func (sconn *SafeConn) WriteTCP(data []byte) (int, error) {
     sconn.mutex.Lock(); defer sconn.mutex.Unlock()
     return sconn.tcpConn.Write(data)
@@ -53,18 +58,28 @@ func (sconn *SafeConn) Close() error {
 	return sconn.tcpConn.Close()
 }
 
-func (sconn *SafeConn) SendPacketTCP(packetID int, data []byte) error {
-	if *globals.DebugShowOutgoing {
-		fmt.Printf("[DEBUG] Sending packet ID %d\n", packetID)
-	}
-
-	//TODO what the fuck
+func encodePacket(packetId int, data []byte) []byte {
 	packet := []byte{}
 	length := []byte{}
-	datatypes.AppendVarInt(&packet, packetID)
+	datatypes.AppendVarInt(&packet, packetId)
 	packet = append(packet, data...)
 	datatypes.AppendVarInt(&length, len(packet))
-	_, err := sconn.WriteTCP(append(length, packet...))
+
+	return append(length, packet...)
+}
+
+func (sconn *SafeConn) SendPacketUDP(conn net.UDPConn, packetId int, data []byte) error {
+	sconn.mutex.Lock(); defer sconn.mutex.Unlock()
+	_, err := sconn.WriteUDP(conn, encodePacket(packetId, data))
+	return err
+}
+
+func (sconn *SafeConn) SendPacketTCP(packetId int, data []byte) error {
+	if *globals.DebugShowOutgoing {
+		fmt.Printf("[DEBUG] Sending packet ID %d\n", packetId)
+	}
+
+	_, err := sconn.WriteTCP(encodePacket(packetId, data))
 	return err
 }
 
