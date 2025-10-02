@@ -69,7 +69,7 @@ func getSyncData(lobby *Lobby) []byte {
 
 func HandlePacket(sconn *utils.SafeConn, clientId clientID, packetId int, packetData []byte) error {
 	if *globals.DebugShowIncoming {
-		fmt.Printf("received packet id %d from client %d with data %v", clientId, packetId, packetData)
+		fmt.Printf("received packet id %d from client %d with data %v\n", clientId, packetId, packetData)
 	}
 
 	switch packetId {

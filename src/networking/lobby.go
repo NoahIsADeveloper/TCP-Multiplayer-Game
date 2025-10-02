@@ -59,7 +59,7 @@ func (lobby *Lobby) RemovePlayer(clientId clientID) {
 	//TODO sync players
 
 	if *globals.DebugLobbyInfo {
-		fmt.Printf("[DEBUG] Removed client %d from lobby %d\n", clientId, lobby.id)
+		fmt.Printf("removed client %d from lobby %d\n", clientId, lobby.id)
 	}
 }
 
@@ -76,7 +76,7 @@ func (lobby *Lobby) AddPlayer(clientId clientID, name string, sconn *utils.SafeC
 	joinedLobbies[clientId] = lobby
 
 	if *globals.DebugLobbyInfo {
-		fmt.Printf("[DEBUG] Added client %d to lobby %d\n", clientId, lobby.id)
+		fmt.Printf("added client %d to lobby %d\n", clientId, lobby.id)
 	}
 
 	//TODO sync players
@@ -149,7 +149,7 @@ func CreateLobby(name string, host clientID) (*Lobby, error) {
 
 	lobbies[lobbyID] = lobby
 	if *globals.DebugLobbyInfo {
-		fmt.Printf("[DEBUG] Created lobby %s %d with host %d\n", name, lobbyID, host)
+		fmt.Printf("created lobby %s %d with host %d\n", name, lobbyID, host)
 	}
 
 	return lobby, nil

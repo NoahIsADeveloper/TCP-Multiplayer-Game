@@ -68,7 +68,7 @@ func StartUpdateLoop(tickrate int) {
 func HandleUDPPacket(addr *net.UDPAddr, data []byte) {
 	defer func() {
 		if panic := recover(); panic != nil {
-			fmt.Printf("Recovered from panic from udp %s, encountered error %v.\n", addr.Network(), panic)
+			fmt.Printf("Recovered from panic from udp %s, encountered error %v.\n", addr.String(), panic)
 		}
 	}()
 
@@ -103,6 +103,11 @@ func HandleUDPPacket(addr *net.UDPAddr, data []byte) {
 		fmt.Printf("error reading udp packet length %v\n", err)
 		return
 	}
+
+	// if offset + length > len(data) {
+	// 	fmt.Printf("invalid udp packet length: want %d bytes, have %d\n with data %v", length, len(data) - offset, data)
+	// 	return
+	// }
 
 	packetData:= data[offset:offset + length]
 

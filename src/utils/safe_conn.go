@@ -72,7 +72,7 @@ func encodePacket(packetId int, data []byte) []byte {
 
 func (sconn *SafeConn) SendPacketUDP(conn net.UDPConn, packetId int, data []byte) error {
 	if *globals.DebugShowOutgoing {
-		fmt.Printf("sending udp packet id %d with data %v", packetId, data)
+		fmt.Printf("sending udp packet id %d with data %v\n", packetId, data)
 	}
 
 	_, err := sconn.WriteUDP(conn, encodePacket(packetId, data))
@@ -81,7 +81,7 @@ func (sconn *SafeConn) SendPacketUDP(conn net.UDPConn, packetId int, data []byte
 
 func (sconn *SafeConn) SendPacketTCP(packetId int, data []byte) error {
 	if *globals.DebugShowOutgoing {
-		fmt.Printf("sending tcp packet id %d with data %v", packetId, data)
+		fmt.Printf("sending tcp packet id %d with data %v\n", packetId, data)
 	}
 
 	_, err := sconn.WriteTCP(encodePacket(packetId, data))
