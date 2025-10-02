@@ -12,6 +12,7 @@ type SafeConn struct {
     tcpConn net.Conn
 	udpAddr net.UDPAddr
 
+	hasUdp bool
 	session *Session
     mutex sync.RWMutex
 }
@@ -41,6 +42,7 @@ func DecodeVarInt(sconn *SafeConn) (int, error) {
 
 func (sconn *SafeConn) WriteUDP(conn net.UDPConn, data []byte) (int, error) {
 	sconn.mutex.Lock(); defer sconn.mutex.Unlock()
+	if !sconn.hasUdp { return 0, nil }
 	return conn.WriteTo(data, &sconn.udpAddr)
 }
 
@@ -121,11 +123,13 @@ func (sconn *SafeConn) ReadPacketTCP() (int, []byte, error) {
 func (sconn *SafeConn) AddUDPAddr(addr net.UDPAddr) {
     sconn.mutex.Lock(); defer sconn.mutex.Unlock()
 	sconn.udpAddr = addr
+	sconn.hasUdp = true
 }
 
 func NewSafeConn(tcpConn net.Conn, session *Session) *SafeConn {
 	return &SafeConn{
 		tcpConn: tcpConn,
 		session: session,
+		hasUdp: false,
 	}
 }
