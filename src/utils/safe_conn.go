@@ -14,7 +14,7 @@ type SafeConn struct {
 
 	hasUdp bool
 	session *Session
-    mutex sync.RWMutex
+    mutex sync.Mutex
 }
 
 //TODO lpease find a better way to impliemnt this hoy fucking shit
@@ -43,17 +43,19 @@ func DecodeVarInt(sconn *SafeConn) (int, error) {
 func (sconn *SafeConn) WriteUDP(conn net.UDPConn, data []byte) (int, error) {
 	sconn.mutex.Lock(); defer sconn.mutex.Unlock()
 	if !sconn.hasUdp { return 0, nil }
-	return conn.WriteTo(data, &sconn.udpAddr)
+	value, err := conn.WriteTo(data, &sconn.udpAddr)
+	return value, err
 }
 
 func (sconn *SafeConn) WriteTCP(data []byte) (int, error) {
-    sconn.mutex.Lock(); defer sconn.mutex.Unlock()
-    return sconn.tcpConn.Write(data)
+    value, err := sconn.tcpConn.Write(data)
+	return value, err
 }
 
 func (sconn *SafeConn) ReadTCP(data []byte) (int, error) {
-	sconn.mutex.RLock(); defer sconn.mutex.RUnlock()
-	return sconn.tcpConn.Read(data)
+	value, err := sconn.tcpConn.Read(data)
+
+	return value, err
 }
 
 func (sconn *SafeConn) Close() error {

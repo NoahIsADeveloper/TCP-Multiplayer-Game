@@ -83,7 +83,7 @@ func scSyncLobbyPlayers(lobby *Lobby) error {
 func scSyncLobby(sconn *utils.SafeConn, clientId clientID) error {
 	lobby, ok := GetLobbyFromClient(clientId)
 
-	if ok {
+	if !ok {
 		sconn.SendPacketTCP(SC_SYNC_LOBBY, []byte{0x00})
 	}
 
@@ -100,11 +100,12 @@ func scSyncEntireLobby(lobby *Lobby) error {
 }
 
 func scLobbyList(sconn *utils.SafeConn) error {
-	lobbyMutex.RLock();
 
 	data := []byte{}
 
+	lobbyMutex.RLock();
 	datatypes.AppendVarInt(&data, len(lobbies))
+
 	for _, lobby := range(lobbies) {
 		lobby.mutex.RLock()
 

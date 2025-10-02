@@ -14,7 +14,7 @@ func (player *Player) Move(x uint16, y uint16, rotation float32, updateNumber in
 	if updateNumber <= player.updateNumber { return }
 
 	rotationDiff := player.rotation - rotation
-	if player.x == x && player.y == y && (rotationDiff > 3 || rotationDiff < -3) {
+	if player.x == x && player.y == y && (rotationDiff > 0.04 || rotationDiff < -0.04) {
 		return
 	}
 

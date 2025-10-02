@@ -17,7 +17,8 @@ func csLobbyJoin(sconn *utils.SafeConn, clientId clientID, packetData []byte) er
 
 	lobbyMutex.RLock()
 	_, ok := joinedLobbies[clientId]
-	if !ok {
+	if ok {
+		lobbyMutex.RUnlock()
 		return scJoinDeny(sconn, "You are already in a lobby.")
 	}
 	lobby, ok := lobbies[lobbyID(lobbyId)]
@@ -26,7 +27,9 @@ func csLobbyJoin(sconn *utils.SafeConn, clientId clientID, packetData []byte) er
 		return scJoinDeny(sconn, "Requested lobby doesn't exist")
 	}
 
-	lobby.AddPlayer(clientId, username, sconn)
+	err = lobby.AddPlayer(clientId, username, sconn)
+	if err != nil { return err }
+
 	return scJoinAccept(sconn, clientId, lobby)
 }
 
@@ -92,6 +95,7 @@ func csLobbyKick(host clientID, packetData []byte) error {
 	if err != nil { return err }
 
 	scKickPlayer(connectionsFromClientId[toKick], reason)
+
 	lobby.RemovePlayer(toKick)
 
 	return nil
@@ -109,11 +113,16 @@ func csLobbyPromote(host clientID, packetData []byte) error {
 	victimId, err := datatypes.ReadVarInt(packetData, &offset)
 	if err != nil { return err }
 	toPromote := clientID(victimId)
-	if !lobby.HasClient(toPromote) { return nil }
+	lobby.mutex.Unlock()
+	if !lobby.HasClient(toPromote) { lobby.mutex.Lock(); return nil }
+	lobby.mutex.Lock()
 	lobby.host = toPromote
 
-	// Update lobby info
-	return scSyncEntireLobby(lobby)
+	lobby.mutex.Unlock()
+	scSyncEntireLobby(lobby)
+	lobby.mutex.Lock()
+
+	return nil
 }
 
 func csLeaveLobby(clientId clientID) error {
@@ -123,7 +132,6 @@ func csLeaveLobby(clientId clientID) error {
 	if !lobby.HasClient(clientId) { return nil }
 
 	lobby.RemovePlayer(clientId)
-	scSyncLobbyPlayers(lobby)
 
 	return nil
 }

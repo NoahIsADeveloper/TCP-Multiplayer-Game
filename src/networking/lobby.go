@@ -40,7 +40,7 @@ func (lobby *Lobby) Release() {
 }
 
 func (lobby *Lobby) RemovePlayer(clientId clientID) {
-	lobby.mutex.Lock(); defer lobby.mutex.Unlock()
+	lobby.mutex.Lock();
 
 	delete(lobby.players, clientId)
 	delete(lobby.connections, clientId)
@@ -54,20 +54,27 @@ func (lobby *Lobby) RemovePlayer(clientId clientID) {
 			break
 		}
 
-		//TODO sync lobby
+		lobby.mutex.Unlock();
+		scSyncEntireLobby(lobby)
+		lobby.mutex.Lock();
 	}
-	//TODO sync players
+	lobby.mutex.Unlock();
+	scSyncLobbyPlayers(lobby)
+	lobby.mutex.Lock();
 
 	if *globals.DebugLobbyInfo {
 		fmt.Printf("removed client %d from lobby %d\n", clientId, lobby.id)
 	}
+
+	lobby.mutex.Unlock();
 }
 
 func (lobby *Lobby) AddPlayer(clientId clientID, name string, sconn *utils.SafeConn) error {
-	lobby.mutex.Lock(); defer lobby.mutex.Unlock()
+	lobby.mutex.Lock()
 
 	_, ok := joinedLobbies[clientId]
 	if ok {
+		lobby.mutex.Unlock();
 		return fmt.Errorf("cannot add client %d as they are already in a lobby", clientId)
 	}
 
@@ -79,7 +86,9 @@ func (lobby *Lobby) AddPlayer(clientId clientID, name string, sconn *utils.SafeC
 		fmt.Printf("added client %d to lobby %d\n", clientId, lobby.id)
 	}
 
-	//TODO sync players
+	lobby.mutex.Unlock();
+	scSyncLobbyPlayers(lobby)
+
 	return nil
 }
 
@@ -107,14 +116,14 @@ func (lobby *Lobby) HasClient(clientId clientID) (bool) {
 
 
 func (lobby *Lobby) SendPacketToAllUDP(packetId int, data []byte) {
-	for _, connection := range(lobby.connections) {
-		connection.SendPacketUDP(*udpConn, packetId, data)
+	for _, sconn := range(lobby.connections) {
+		sconn.SendPacketUDP(*udpConn, packetId, data)
 	}
 }
 
 func (lobby *Lobby) SendPacketToAllTCP(packetId int, data []byte) {
-	for _, connection := range(lobby.connections) {
-		connection.SendPacketTCP(packetId, data)
+	for _, sconn := range(lobby.connections) {
+		sconn.SendPacketTCP(packetId, data)
 	}
 }
 
@@ -131,12 +140,6 @@ func CreateLobby(name string, host clientID) (*Lobby, error) {
 	lobbyID, ok := lobbyIdManager.Get()
 	if !ok {
 		return nil, fmt.Errorf("max lobby limited reached")
-	}
-
-	for {
-		_, ok := lobbies[lobbyID]
-		if !ok { break }
-		lobbyID++
 	}
 
 	lobby := &Lobby{
