@@ -82,6 +82,8 @@ func HandlePacket(sconn *utils.SafeConn, clientId clientID, packetId int, packet
 		return scLobbyList(sconn)
 
 		// Lobby controls
+	case CS_LOBBY_JOIN:
+		return csLobbyJoin(sconn, clientId, packetData)
 	case CS_LOBBY_CREATE:
 		return csLobbyCreate(sconn, clientId, packetData)
 	}

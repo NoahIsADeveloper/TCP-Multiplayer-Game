@@ -1,7 +1,9 @@
 package networking
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"potato-bones/src/globals"
 	"potato-bones/src/networking/datatypes"
@@ -41,7 +43,7 @@ func StartUpdateLoop(tickrate int) {
 	// Nothing for now
 }
 
-func HandleUDPPacket(addr *net.UDPAddr, data []byte) error {
+func HandleUDPPacket(addr *net.UDPAddr, data []byte) {
 	defer func() {
 		if panic := recover(); panic != nil {
 			fmt.Printf("Recovered from panic from udp %s, encountered error %v.\n", addr.Network(), panic)
@@ -49,35 +51,52 @@ func HandleUDPPacket(addr *net.UDPAddr, data []byte) error {
 	}()
 
 	var offset int = 0
+
+	// TODO errors here get voided right now after they get returned, please fixy :)
 	sessionId, err := datatypes.ReadString(data, &offset)
-	if err != nil { return err }
+	if err != nil {
+		fmt.Printf("error reading session id %v\n", err)
+		return
+	}
 
 	_, ok := sessionManager.GetSession(sessionId)
 	if !ok {
-		return fmt.Errorf("client attempted to use invalid session %s", sessionId)
+		fmt.Printf("client attempted to use invalid session %s\n", sessionId)
+		return
 	}
 
-	//TODO better error messages
 	clientId, ok := clientIdFromSessionId[sessionId]
 	if !ok {
-		return fmt.Errorf("server invalid session id")
+		fmt.Println("server invalid session id")
+		return
 	}
 	sconn, ok := connectionsFromClientId[clientId]
 	if !ok {
-		return fmt.Errorf("server invalid client id")
+		fmt.Println("server invalid client id")
+		return
 	}
 
 	length, err := datatypes.ReadVarInt(data, &offset)
-	if err != nil { return err }
+	if err != nil {
+		fmt.Printf("error reading udp packet length %v\n", err)
+		return
+	}
 
 	packetData:= data[offset:offset + length]
 
 	length = 0
 	packetId, err := datatypes.ReadVarInt(packetData, &length)
-	if err != nil { return err }
+	if err != nil {
+		fmt.Printf("error reading udp packet id %v\n", err)
+		return
+	}
 	packetData = packetData[length:]
 
-	return HandlePacket(sconn, clientId, packetId, packetData)
+	err = HandlePacket(sconn, clientId, packetId, packetData)
+	if err != nil {
+		fmt.Printf("error handling udp packet %v\n", err)
+		return
+	}
 }
 
 func HandleTCPClient(conn net.Conn) error {
@@ -113,13 +132,19 @@ func HandleTCPClient(conn net.Conn) error {
 		packetID, packetData, err := sconn.ReadPacketTCP()
 		if err != nil {
 			fmt.Printf("Couldn't read packet from client %d, encountered error %v.\n", clientId, err)
-			return err
+
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				return err
+			} else { continue }
 		}
 
 		err = HandlePacket(sconn, clientId, packetID, packetData)
 		if err != nil {
 			fmt.Printf("Couldn't handle packet from client %d id %d, encountered error %v.\n", clientId, packetID, err)
-			return err
+
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				return err
+			} else { continue }
 		}
 	}
 }
