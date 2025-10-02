@@ -52,14 +52,32 @@ func HandleUDPPacket(addr *net.UDPAddr, data []byte) error {
 	sessionId, err := datatypes.ReadString(data, &offset)
 	if err != nil { return err }
 
-	session, ok := sessionManager.GetSession(sessionId)
+	_, ok := sessionManager.GetSession(sessionId)
 	if !ok {
 		return fmt.Errorf("client attempted to use invalid session %s", sessionId)
 	}
 
-	fmt.Println(session.ID)
+	//TODO better error messages
+	clientId, ok := clientIdFromSessionId[sessionId]
+	if !ok {
+		return fmt.Errorf("server invalid session id")
+	}
+	sconn, ok := connectionsFromClientId[clientId]
+	if !ok {
+		return fmt.Errorf("server invalid client id")
+	}
 
-	return nil
+	length, err := datatypes.ReadVarInt(data, &offset)
+	if err != nil { return err }
+
+	packetData:= data[offset:offset + length]
+
+	length = 0
+	packetId, err := datatypes.ReadVarInt(packetData, &length)
+	if err != nil { return err }
+	packetData = packetData[length:]
+
+	return HandlePacket(sconn, clientId, packetId, packetData)
 }
 
 func HandleTCPClient(conn net.Conn) error {

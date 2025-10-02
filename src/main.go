@@ -32,18 +32,15 @@ func HandleTCPServer() {
 	if (err != nil) { panic(err) }
 	fmt.Println("TCP Server running on " + *globals.Host + ":" + fmt.Sprint(*globals.Port))
 
-	networking.InitNetworking()
-	networking.StartUpdateLoop(*globals.Tickrate)
-
 	for {
 		conn, err := ln.Accept()
-		if err != nil { return }
+		if err != nil { continue }
 		go networking.HandleTCPClient(conn)
 	}
 }
 
 func HandleUDPServer() {
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprint(*globals.Port))
+	addr, err := net.ResolveUDPAddr("udp", *globals.Host + ":" + fmt.Sprint(*globals.Port))
 	if err != nil { panic(err) }
 
 	udpConn, err := net.ListenUDP("udp", addr)
@@ -68,6 +65,10 @@ func HandleUDPServer() {
 func main() {
 	parseFlags()
 
+	networking.InitNetworking()
+	networking.StartUpdateLoop(*globals.Tickrate)
+
+	fmt.Println("Starting servers...")
 	go HandleUDPServer()
-	go HandleTCPServer()
+	HandleTCPServer()
 }

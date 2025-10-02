@@ -34,7 +34,7 @@ func scSyncLobby(sconn *utils.SafeConn, clientId clientID) error {
 }
 
 func scLobbyList(sconn *utils.SafeConn) error {
-	lobbyMutex.RLock(); defer lobbyMutex.Unlock();
+	lobbyMutex.RLock();
 
 	data := []byte{}
 
@@ -54,5 +54,6 @@ func scLobbyList(sconn *utils.SafeConn) error {
 		lobby.mutex.RUnlock()
 	}
 
+	lobbyMutex.RUnlock();
 	return sconn.SendPacketTCP(SC_LOBBY_LIST, data)
 }

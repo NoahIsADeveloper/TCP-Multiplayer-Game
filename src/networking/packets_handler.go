@@ -48,7 +48,7 @@ const (
 )
 
 func getSyncData(lobby *Lobby) []byte {
-	lobby.mutex.RLock(); defer lobby.mutex.Unlock()
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
 
 	var data []byte
 
