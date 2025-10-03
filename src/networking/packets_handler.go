@@ -52,11 +52,9 @@ const (
 )
 
 func getPlayerSyncData(lobby *Lobby) []byte {
-	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
-
 	var data []byte
 
-	players := lobby.players
+	players := lobby.GetPlayers()
 	datatypes.AppendVarInt(&data, len(players))
 
 	for clientId, player := range players {
@@ -68,12 +66,10 @@ func getPlayerSyncData(lobby *Lobby) []byte {
 }
 
 func getLobbySyncData(lobby *Lobby) []byte {
-	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
-
 	var data []byte
-	datatypes.AppendVarInt(&data, int(lobby.id))
-	datatypes.AppendString(&data, lobby.name)
-	datatypes.AppendVarInt(&data, int(lobby.host))
+	datatypes.AppendVarInt(&data, int(lobby.GetID()))
+	datatypes.AppendString(&data, lobby.GetName())
+	datatypes.AppendVarInt(&data, int(lobby.GetHost()))
 
 	return data
 }

@@ -9,10 +9,11 @@ import (
 )
 
 type lobbyID uint32
-var lobbyMutex sync.RWMutex
 var lobbies = make(map[lobbyID]*Lobby)
 var joinedLobbies = make(map[clientID]*Lobby)
 var lobbyIdManager *utils.IDManager[lobbyID]
+
+var globalLobbyMutex sync.RWMutex
 
 type Lobby struct{
 	name string
@@ -29,14 +30,72 @@ func initLobby() {
 	lobbyIdManager = utils.NewIDManager(lobbyID(*globals.MaxLobbies))
 }
 
-func (lobby *Lobby) Rename(name string) {
-	lobby.mutex.Lock(); defer lobby.mutex.Unlock()
+func (lobby *Lobby) Release() {
+	lobbyIdManager.Release(lobbyID(lobby.id))
+}
 
+func (lobby *Lobby) GetPlayers() map[clientID]*entities.Player {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock();
+	return lobby.players
+}
+
+func (lobby *Lobby) GetName() string {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock();
+	return lobby.name
+}
+
+func (lobby *Lobby) SwapName(name string) {
+	lobby.mutex.Lock(); defer lobby.mutex.Unlock()
 	lobby.name = name
 }
 
-func (lobby *Lobby) Release() {
-	lobbyIdManager.Release(lobbyID(lobby.id))
+func (lobby *Lobby) GetID() lobbyID {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock();
+	return lobby.id
+}
+
+func (lobby *Lobby) GetHost() clientID {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock();
+	return lobby.host
+}
+
+func (lobby *Lobby) SwapHost(clientId clientID) (bool) {
+	if !lobby.HasClient(clientId) { return false }
+	lobby.mutex.Lock()
+	lobby.host = clientId
+	lobby.mutex.Unlock()
+
+	scSyncEntireLobby(lobby)
+	return true
+}
+
+func (lobby *Lobby) HasClient(clientId clientID) (bool) {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
+	_, ok := lobby.connections[clientId]
+	return ok
+}
+
+func (lobby *Lobby) AddPlayer(clientId clientID, name string, sconn *utils.SafeConn) error {
+	lobby.mutex.Lock()
+
+	_, ok := joinedLobbies[clientId]
+	if ok {
+		lobby.mutex.Unlock();
+		return fmt.Errorf("cannot add client %d as they are already in a lobby", clientId)
+	}
+
+	lobby.players[clientId] = entities.NewPlayer(name)
+	lobby.connections[clientId] = sconn
+	joinedLobbies[clientId] = lobby
+
+	if *globals.DebugLobbyInfo {
+		fmt.Printf("added client %d to lobby %d\n", clientId, lobby.id)
+	}
+
+	lobby.mutex.Unlock();
+	scSyncLobbyPlayers(lobby)
+
+	return nil
 }
 
 func (lobby *Lobby) RemovePlayer(clientId clientID) {
@@ -69,29 +128,6 @@ func (lobby *Lobby) RemovePlayer(clientId clientID) {
 	lobby.mutex.Unlock();
 }
 
-func (lobby *Lobby) AddPlayer(clientId clientID, name string, sconn *utils.SafeConn) error {
-	lobby.mutex.Lock()
-
-	_, ok := joinedLobbies[clientId]
-	if ok {
-		lobby.mutex.Unlock();
-		return fmt.Errorf("cannot add client %d as they are already in a lobby", clientId)
-	}
-
-	lobby.players[clientId] = entities.NewPlayer(name)
-	lobby.connections[clientId] = sconn
-	joinedLobbies[clientId] = lobby
-
-	if *globals.DebugLobbyInfo {
-		fmt.Printf("added client %d to lobby %d\n", clientId, lobby.id)
-	}
-
-	lobby.mutex.Unlock();
-	scSyncLobbyPlayers(lobby)
-
-	return nil
-}
-
 func (lobby *Lobby) GetClientData(clientId clientID) (*entities.Player, *utils.SafeConn, error) {
 	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
 
@@ -107,35 +143,38 @@ func (lobby *Lobby) GetClientData(clientId clientID) (*entities.Player, *utils.S
 	return player, sconn, nil
 }
 
-func (lobby *Lobby) HasClient(clientId clientID) (bool) {
-	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
-
-	_, ok := lobby.connections[clientId]
-	return ok
-}
-
 
 func (lobby *Lobby) SendPacketToAllUDP(packetId int, data []byte) {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
 	for _, sconn := range(lobby.connections) {
 		sconn.SendPacketUDP(*udpConn, packetId, data)
 	}
 }
 
 func (lobby *Lobby) SendPacketToAllTCP(packetId int, data []byte) {
+	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
+
 	for _, sconn := range(lobby.connections) {
 		sconn.SendPacketTCP(packetId, data)
 	}
 }
 
 func GetLobbyFromClient(clientId clientID) (*Lobby, bool) {
-	lobbyMutex.RLock(); defer lobbyMutex.RUnlock()
+	globalLobbyMutex.RLock(); defer globalLobbyMutex.RUnlock()
 
 	lobby, ok := joinedLobbies[clientId]
 	return lobby, ok
 }
 
+func GetLobbyFromId(lobbyId lobbyID) (*Lobby, bool) {
+	globalLobbyMutex.RLock(); defer globalLobbyMutex.RUnlock()
+
+	lobby, ok := lobbies[lobbyId]
+	return lobby, ok
+}
+
 func CreateLobby(name string, host clientID) (*Lobby, error) {
-	lobbyMutex.RLock(); defer lobbyMutex.RUnlock()
+	globalLobbyMutex.Lock(); defer globalLobbyMutex.Unlock()
 
 	lobbyID, ok := lobbyIdManager.Get()
 	if !ok {

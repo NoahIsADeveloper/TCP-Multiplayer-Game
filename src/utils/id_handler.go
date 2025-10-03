@@ -14,8 +14,7 @@ type IDManager[ID IDType] struct {
 }
 
 func (manager *IDManager[ID]) Get() (ID, bool) {
-	manager.mutex.Lock()
-	defer manager.mutex.Unlock()
+	manager.mutex.Lock(); defer manager.mutex.Unlock()
 
 	var id ID
 	if len(manager.freeIDs) > 0 {
@@ -35,8 +34,7 @@ func (manager *IDManager[ID]) Get() (ID, bool) {
 }
 
 func (manager *IDManager[ID]) Release(id ID) {
-	manager.mutex.Lock()
-	defer manager.mutex.Unlock()
+	manager.mutex.Lock(); defer manager.mutex.Unlock()
 	manager.freeIDs = append(manager.freeIDs, id)
 }
 

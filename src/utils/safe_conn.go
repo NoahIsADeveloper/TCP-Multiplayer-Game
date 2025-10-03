@@ -9,12 +9,13 @@ import (
 )
 
 type SafeConn struct {
-    tcpConn net.Conn
+	tcpConn net.Conn
 	udpAddr net.UDPAddr
-
-	hasUdp bool
+	hasUdp  bool
 	session *Session
-    mutex sync.Mutex
+
+	readMutex  sync.Mutex
+	writeMutex sync.Mutex
 }
 
 //TODO lpease find a better way to impliemnt this hoy fucking shit
@@ -40,8 +41,17 @@ func DecodeVarInt(sconn *SafeConn) (int, error) {
 	return result, nil
 }
 
+func encodePacket(packetId int, data []byte) []byte {
+	packet := []byte{}
+	length := []byte{}
+	datatypes.AppendVarInt(&packet, packetId)
+	packet = append(packet, data...)
+	datatypes.AppendVarInt(&length, len(packet))
+
+	return append(length, packet...)
+}
+
 func (sconn *SafeConn) WriteUDP(conn net.UDPConn, data []byte) (int, error) {
-	sconn.mutex.Lock(); defer sconn.mutex.Unlock()
 	if !sconn.hasUdp { return 0, nil }
 	value, err := conn.WriteTo(data, &sconn.udpAddr)
 	return value, err
@@ -62,17 +72,9 @@ func (sconn *SafeConn) Close() error {
 	return sconn.tcpConn.Close()
 }
 
-func encodePacket(packetId int, data []byte) []byte {
-	packet := []byte{}
-	length := []byte{}
-	datatypes.AppendVarInt(&packet, packetId)
-	packet = append(packet, data...)
-	datatypes.AppendVarInt(&length, len(packet))
-
-	return append(length, packet...)
-}
-
 func (sconn *SafeConn) SendPacketUDP(conn net.UDPConn, packetId int, data []byte) error {
+	sconn.writeMutex.Lock(); defer sconn.writeMutex.Unlock()
+
 	if *globals.DebugShowOutgoing {
 		fmt.Printf("sending udp packet id %d with data %v\n", packetId, data)
 	}
@@ -82,6 +84,8 @@ func (sconn *SafeConn) SendPacketUDP(conn net.UDPConn, packetId int, data []byte
 }
 
 func (sconn *SafeConn) SendPacketTCP(packetId int, data []byte) error {
+	sconn.writeMutex.Lock(); defer sconn.writeMutex.Unlock()
+
 	if *globals.DebugShowOutgoing {
 		fmt.Printf("sending tcp packet id %d with data %v\n", packetId, data)
 	}
@@ -91,6 +95,8 @@ func (sconn *SafeConn) SendPacketTCP(packetId int, data []byte) error {
 }
 
 func (sconn *SafeConn) ReadPacketTCP() (int, []byte, error) {
+	sconn.readMutex.Lock(); defer sconn.readMutex.Unlock()
+
 	length, err := DecodeVarInt(sconn)
 	if err != nil {
 		return 0, nil, err
@@ -126,7 +132,7 @@ func (sconn *SafeConn) ReadPacketTCP() (int, []byte, error) {
 }
 
 func (sconn *SafeConn) AddUDPAddr(addr net.UDPAddr) {
-    sconn.mutex.Lock(); defer sconn.mutex.Unlock()
+    sconn.writeMutex.Lock(); defer sconn.writeMutex.Unlock()
 	sconn.udpAddr = addr
 	sconn.hasUdp = true
 }

@@ -11,8 +11,8 @@ func scUpdatePlayers(lobby *Lobby) error {
 	var array []byte
 	var arraySize int = 0
 
-	lobby.mutex.RLock()
-	for clientId, player := range(lobby.players) {
+	players := lobby.GetPlayers()
+	for clientId, player := range(players) {
 		if !player.DoUpdate() { continue }
 		datatypes.AppendVarInt(&array, int(clientId))
 		x, y, rotation := player.GetPosition()
@@ -20,7 +20,10 @@ func scUpdatePlayers(lobby *Lobby) error {
 		datatypes.AppendRotation(&array, rotation)
 		arraySize++
 	}
-	lobby.mutex.RUnlock()
+
+	if arraySize == 0 {
+		return nil
+	}
 
 	datatypes.AppendVarInt(&data, arraySize)
 	data = append(data, array...)
@@ -32,11 +35,9 @@ func scUpdatePlayers(lobby *Lobby) error {
 //
 func scJoinAccept(sconn *utils.SafeConn, clientId clientID, lobby *Lobby) error {
 	var data []byte
-	lobby.mutex.RLock()
 	datatypes.AppendVarInt(&data, int(clientId))
-	datatypes.AppendVarInt(&data, int(lobby.id))
-	datatypes.AppendString(&data, lobby.name)
-	lobby.mutex.RUnlock()
+	datatypes.AppendVarInt(&data, int(lobby.GetID()))
+	datatypes.AppendString(&data, lobby.GetName())
 
 	return sconn.SendPacketTCP(SC_LOBBY_JOIN_ACCEPT, data)
 }
@@ -57,9 +58,11 @@ func scSyncClientId(sconn *utils.SafeConn, clientId clientID) error {
 func scSyncSessionId(sconn *utils.SafeConn, clientId clientID) error {
 	data := []byte{}
 
-	clientMutex.RLock()
-	datatypes.AppendString(&data, sessionIdFromClientId[clientId])
-	clientMutex.RUnlock()
+	sessionId, ok := getSessionId(clientId)
+	if !ok {
+		return fmt.Errorf("session id not found for client %d", clientId)
+	}
+	datatypes.AppendString(&data, sessionId)
 
 	return sconn.SendPacketTCP(SC_SYNC_SESSION_ID, data)
 }
@@ -100,28 +103,24 @@ func scSyncEntireLobby(lobby *Lobby) error {
 }
 
 func scLobbyList(sconn *utils.SafeConn) error {
+	globalLobbyMutex.RLock(); defer globalLobbyMutex.RUnlock()
 
 	data := []byte{}
 
-	lobbyMutex.RLock();
 	datatypes.AppendVarInt(&data, len(lobbies))
 
 	for _, lobby := range(lobbies) {
-		lobby.mutex.RLock()
+		datatypes.AppendVarInt(&data, int(lobby.GetID()))
+		datatypes.AppendString(&data, lobby.GetName())
+		datatypes.AppendVarInt(&data, int(lobby.GetHost()))
 
-		datatypes.AppendVarInt(&data, int(lobby.id))
-		datatypes.AppendString(&data, lobby.name)
-		datatypes.AppendVarInt(&data, int(lobby.host))
-
-		datatypes.AppendVarInt(&data, len(lobby.players))
-		for _, player := range(lobby.players) {
+		players := lobby.GetPlayers()
+		datatypes.AppendVarInt(&data, len(players))
+		for _, player := range(players) {
 			datatypes.AppendString(&data, player.GetName())
 		}
-
-		lobby.mutex.RUnlock()
 	}
 
-	lobbyMutex.RUnlock();
 	return sconn.SendPacketTCP(SC_LOBBY_LIST, data)
 }
 

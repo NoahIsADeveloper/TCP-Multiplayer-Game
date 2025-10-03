@@ -15,14 +15,11 @@ func csLobbyJoin(sconn *utils.SafeConn, clientId clientID, packetData []byte) er
 	lobbyId, err := datatypes.ReadVarInt(packetData, &offset)
 	if err != nil { return err }
 
-	lobbyMutex.RLock()
-	_, ok := joinedLobbies[clientId]
+	_, ok := GetLobbyFromClient(clientId)
 	if ok {
-		lobbyMutex.RUnlock()
 		return scJoinDeny(sconn, "You are already in a lobby.")
 	}
-	lobby, ok := lobbies[lobbyID(lobbyId)]
-	lobbyMutex.RUnlock()
+	lobby, ok := GetLobbyFromId(lobbyID(lobbyId))
 	if !ok {
 		return scJoinDeny(sconn, "Requested lobby doesn't exist")
 	}
@@ -78,11 +75,10 @@ func csMove(clientId clientID, packetData []byte) error {
 
 func csLobbyKick(host clientID, packetData []byte) error {
 	lobby, ok := GetLobbyFromClient(host)
-	lobby.mutex.RLock(); defer lobby.mutex.RUnlock()
 
 	// TODO: Send client message on fail
 	if !ok { return nil }
-	if lobby.host != host { return nil }
+	if lobby.GetHost() != host { return nil }
 
 	var offset int = 0
 	victimId, err := datatypes.ReadVarInt(packetData, &offset)
@@ -94,7 +90,11 @@ func csLobbyKick(host clientID, packetData []byte) error {
 	reason, err := datatypes.ReadString(packetData, &offset)
 	if err != nil { return err }
 
-	scKickPlayer(connectionsFromClientId[toKick], reason)
+	value, ok := getConnection(toKick)
+	if !ok {
+		return fmt.Errorf("cannot kick player as no connection found")
+	}
+	scKickPlayer(value, reason)
 
 	lobby.RemovePlayer(toKick)
 
@@ -103,24 +103,16 @@ func csLobbyKick(host clientID, packetData []byte) error {
 
 func csLobbyPromote(host clientID, packetData []byte) error {
 	lobby, ok := GetLobbyFromClient(host)
-	lobby.mutex.Lock(); defer lobby.mutex.Unlock()
 
-	// TODO: Send client message on fail
 	if !ok { return nil }
-	if lobby.host != host { return nil }
+	if lobby.GetHost() != host { return nil }
 
 	var offset int = 0
 	victimId, err := datatypes.ReadVarInt(packetData, &offset)
 	if err != nil { return err }
 	toPromote := clientID(victimId)
-	lobby.mutex.Unlock()
-	if !lobby.HasClient(toPromote) { lobby.mutex.Lock(); return nil }
-	lobby.mutex.Lock()
-	lobby.host = toPromote
 
-	lobby.mutex.Unlock()
-	scSyncEntireLobby(lobby)
-	lobby.mutex.Lock()
+	lobby.SwapHost(toPromote)
 
 	return nil
 }

@@ -34,6 +34,24 @@ func SetUDPConn(conn *net.UDPConn) {
 	udpConn = conn
 }
 
+func getClientId(sessionId string) (clientID, bool) {
+	clientMutex.RLock(); defer clientMutex.RUnlock()
+	value, ok := clientIdFromSessionId[sessionId]
+	return value, ok
+}
+
+func getSessionId(clientId clientID) (string, bool) {
+	clientMutex.RLock(); defer clientMutex.RUnlock()
+	value, ok := sessionIdFromClientId[clientId]
+	return value, ok
+}
+
+func getConnection(clientId clientID) (*utils.SafeConn, bool) {
+	clientMutex.RLock(); defer clientMutex.RUnlock()
+	value, ok := connectionsFromClientId[clientId]
+	return value, ok
+}
+
 func addClient(sconn *utils.SafeConn, session *utils.Session, clientId clientID) {
 	clientMutex.Lock(); defer clientMutex.Unlock()
 	connectionsFromClientId[clientId] = sconn
@@ -49,15 +67,14 @@ func removeClient(clientId clientID, session *utils.Session) {
 }
 
 func updatePlayers(tickrate int) {
-	ticker := time.NewTicker(time.Duration(tickrate) * time.Second)
+	ticker := time.NewTicker(time.Duration(tickrate) * time.Millisecond)
     defer ticker.Stop()
 
+
     for range ticker.C {
-		lobbyMutex.RLock()
 		for _, lobby := range(lobbies) {
 			scUpdatePlayers(lobby)
 		}
-		lobbyMutex.RUnlock()
     }
 }
 
@@ -87,12 +104,12 @@ func HandleUDPPacket(addr *net.UDPAddr, data []byte) {
 		return
 	}
 
-	clientId, ok := clientIdFromSessionId[sessionId]
+	clientId, ok := getClientId(sessionId)
 	if !ok {
 		fmt.Println("server invalid session id")
 		return
 	}
-	sconn, ok := connectionsFromClientId[clientId]
+	sconn, ok := getConnection(clientId)
 	if !ok {
 		fmt.Println("server invalid client id")
 		return

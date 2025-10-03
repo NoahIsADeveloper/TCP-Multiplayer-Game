@@ -13,7 +13,7 @@ func parseFlags() {
 	globals.Port = flag.Int("port", 4206, "Port to run the server on")
 
 	globals.Host = flag.String("host", "0.0.0.0", "Host address to bind to")
-	globals.Tickrate = flag.Int("tickrate", 20, "Server TPS")
+	globals.Tickrate = flag.Int("tickrate", 50, "Server update rate (in miliseconds)")
 	globals.MaxEntities = flag.Int("max-entities", 255, "Max Entities per environment")
 	globals.MaxClients = flag.Int("max-clients", 255, "Max Clients per environment")
 	globals.MaxLobbies = flag.Int("max-lobbies", 255, "Max Lobbies")
