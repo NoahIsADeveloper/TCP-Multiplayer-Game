@@ -28,6 +28,8 @@ func TestEntityInRange(t *testing.T) {
 		{52, 50, 1, false},
 		{60, 60, 15, true},
 		{60, 60, 5, false},
+		{60, 50, 10, true},
+		{50, 0, 50, true},
 	}
 
 	for _, testValues := range tests {

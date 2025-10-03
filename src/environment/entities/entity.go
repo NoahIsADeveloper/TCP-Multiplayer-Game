@@ -35,7 +35,7 @@ func (entity *Entity) InRange(x, y, distance uint16) bool {
 
 func NewEntity() *Entity {
 	entity := &Entity{}
-	entity.Move(1<<15, 1<<15, 0)
+	entity.Move(0, 0, 0)
 
 	return entity
 }

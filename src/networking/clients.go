@@ -70,12 +70,17 @@ func updatePlayers(tickrate int) {
 	ticker := time.NewTicker(time.Duration(tickrate) * time.Millisecond)
     defer ticker.Stop()
 
-	var sequence int
+	var sequence uint32 = 0
 
     for range ticker.C {
 		for _, lobby := range(lobbies) {
-			scUpdatePlayers(lobby, sequence)
+			scUpdatePlayers(lobby, int(sequence))
+
+			if sequence == 0 {
+				scResetSequenceCount(lobby)
+			}
 		}
+
 		sequence++
     }
 }

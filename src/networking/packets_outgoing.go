@@ -6,6 +6,10 @@ import (
 	"potato-bones/src/utils"
 )
 
+func scResetSequenceCount(lobby *Lobby) {
+	lobby.SendPacketToAllTCP(SC_RESET_SEQUENCE_COUNT, []byte{})
+}
+
 func scUpdatePlayers(lobby *Lobby, sequence int) error {
 	var data []byte
 	var array []byte
