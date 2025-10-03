@@ -23,7 +23,6 @@ func parseFlags() {
 	globals.DebugShowIncoming = flag.Bool("debug-incoming", false, "Print incoming packets")
 	globals.DebugLobbyInfo = flag.Bool("debug-lobby", false, "Print lobby updates")
 	globals.SessionLength = flag.Int("session-length", 1440, "How long before a session expires (in minutes)")
-
 	globals.OnlySendTCP = flag.Bool("only-send-tcp", false, "Always use TCP over UDP for outgoing packets")
 	globals.OnlyReadTCP = flag.Bool("only-read-tcp", false, "Always use TCP over UDP for incoming packets")
 
@@ -66,17 +65,23 @@ func HandleUDPServer() {
 	}
 }
 
+func StartServers() {
+    networking.InitNetworking()
+    networking.StartUpdateLoop(*globals.Tickrate)
+
+    if !*globals.OnlyReadTCP {
+        go HandleUDPServer()
+    }
+
+    go HandleTCPServer()
+}
+
+
 func main() {
-	parseFlags()
+    parseFlags()
+    fmt.Println("Starting servers...")
+    StartServers()
 
-	networking.InitNetworking()
-	networking.StartUpdateLoop(*globals.Tickrate)
-
-	fmt.Println("Starting servers...")
-
-	if !*globals.OnlyReadTCP {
-		go HandleUDPServer()
-	}
-
-	HandleTCPServer()
+	// haha loser
+    select {}
 }
