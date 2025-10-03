@@ -73,6 +73,10 @@ func (sconn *SafeConn) Close() error {
 }
 
 func (sconn *SafeConn) SendPacketUDP(conn net.UDPConn, packetId int, data []byte) error {
+	if *globals.OnlySendTCP {
+		return sconn.SendPacketTCP(packetId, data)
+	}
+
 	sconn.writeMutex.Lock(); defer sconn.writeMutex.Unlock()
 
 	if *globals.DebugShowOutgoing {

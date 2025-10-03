@@ -13,17 +13,17 @@ func (player *Player) Move(x uint16, y uint16, rotation float32, updateNumber in
 
 	if updateNumber <= player.updateNumber { return }
 
+	player.x = x
+	player.y = y
+	player.rotation = rotation
+	player.updateNumber = updateNumber
+
 	rotationDiff := player.rotation - rotation
 	if player.x == x && player.y == y && (rotationDiff > 0.04 || rotationDiff < -0.04) {
 		return
 	}
 
-	player.x = x
-	player.y = y
-	player.rotation = rotation
-
 	player.doUpdate = true
-	player.updateNumber = updateNumber
 }
 
 func (player *Player) DoUpdate() bool {

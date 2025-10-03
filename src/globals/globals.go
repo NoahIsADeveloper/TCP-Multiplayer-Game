@@ -7,6 +7,9 @@ var Host *string
 var Tickrate *int
 var SessionLength *int
 
+var OnlyReadTCP *bool
+var OnlySendTCP *bool
+
 var DebugShowOutgoing *bool
 var DebugShowIncoming *bool
 var DebugLobbyInfo *bool

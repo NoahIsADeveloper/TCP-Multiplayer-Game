@@ -6,12 +6,13 @@ import (
 	"potato-bones/src/utils"
 )
 
-func scUpdatePlayers(lobby *Lobby) error {
+func scUpdatePlayers(lobby *Lobby, sequence int) error {
 	var data []byte
 	var array []byte
 	var arraySize int = 0
 
 	players := lobby.GetPlayers()
+	datatypes.AppendVarInt(&array, sequence)
 	for clientId, player := range(players) {
 		if !player.DoUpdate() { continue }
 		datatypes.AppendVarInt(&array, int(clientId))
@@ -21,9 +22,7 @@ func scUpdatePlayers(lobby *Lobby) error {
 		arraySize++
 	}
 
-	if arraySize == 0 {
-		return nil
-	}
+	if arraySize == 0 { return nil }
 
 	datatypes.AppendVarInt(&data, arraySize)
 	data = append(data, array...)

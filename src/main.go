@@ -9,7 +9,7 @@ import (
 )
 
 func parseFlags() {
-	// Potatoes are 4th most grown crop, and there's 206 bones in a human body!
+	// Potatos are 4th most grown crop, and there's 206 bones in a human body!
 	globals.Port = flag.Int("port", 4206, "Port to run the server on")
 
 	globals.Host = flag.String("host", "0.0.0.0", "Host address to bind to")
@@ -22,7 +22,10 @@ func parseFlags() {
 	globals.DebugShowOutgoing = flag.Bool("debug-outgoing", false, "Print outgoing packets")
 	globals.DebugShowIncoming = flag.Bool("debug-incoming", false, "Print incoming packets")
 	globals.DebugLobbyInfo = flag.Bool("debug-lobby", false, "Print lobby updates")
-	globals.SessionLength = flag.Int("session-length", 1440, "How long before a session id expires in minutes")
+	globals.SessionLength = flag.Int("session-length", 1440, "How long before a session expires (in minutes)")
+
+	globals.OnlySendTCP = flag.Bool("only-send-tcp", false, "Always use TCP over UDP for outgoing packets")
+	globals.OnlyReadTCP = flag.Bool("only-read-tcp", false, "Always use TCP over UDP for incoming packets")
 
 	flag.Parse()
 }
@@ -70,6 +73,10 @@ func main() {
 	networking.StartUpdateLoop(*globals.Tickrate)
 
 	fmt.Println("Starting servers...")
-	go HandleUDPServer()
+
+	if !*globals.OnlyReadTCP {
+		go HandleUDPServer()
+	}
+
 	HandleTCPServer()
 }
