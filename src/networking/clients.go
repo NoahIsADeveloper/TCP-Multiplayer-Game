@@ -130,16 +130,18 @@ func HandleUDPPacket(addr *net.UDPAddr, data []byte) {
 		return
 	}
 
+	sconn.AddUDPAddr(*addr)
+
 	length, err := datatypes.ReadVarInt(data, &offset)
 	if err != nil {
 		fmt.Printf("error reading udp packet length %v\n", err)
 		return
 	}
 
-	// if offset + length > len(data) {
-	// 	fmt.Printf("invalid udp packet length: want %d bytes, have %d\n with data %v", length, len(data) - offset, data)
-	// 	return
-	// }
+	if offset + length > len(data) {
+		fmt.Printf("invalid udp packet length: want %d bytes, have %d\n with data %v", length, len(data) - offset, data)
+		return
+	}
 
 	packetData:= data[offset:offset + length]
 

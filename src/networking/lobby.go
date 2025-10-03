@@ -81,7 +81,7 @@ func (lobby *Lobby) AddPlayer(clientId clientID, name string, sconn *utils.SafeC
 	_, ok := joinedLobbies[clientId]
 	if ok {
 		lobby.mutex.Unlock();
-		return fmt.Errorf("cannot add client %d as they are already in a lobby", clientId)
+		return fmt.Errorf("cannot add client %d as player %s they are already in a lobby", clientId, name)
 	}
 
 	lobby.players[clientId] = entities.NewPlayer(name)
@@ -89,7 +89,7 @@ func (lobby *Lobby) AddPlayer(clientId clientID, name string, sconn *utils.SafeC
 	joinedLobbies[clientId] = lobby
 
 	if *globals.DebugLobbyInfo {
-		fmt.Printf("added client %d to lobby %d\n", clientId, lobby.id)
+		fmt.Printf("added client %d as player %s to lobby %d\n", clientId, name, lobby.id)
 	}
 
 	lobby.mutex.Unlock();

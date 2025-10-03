@@ -27,8 +27,13 @@ func (player *Player) Move(x uint16, y uint16, rotation float32, updateNumber in
 }
 
 func (player *Player) DoUpdate() bool {
-	player.mutex.RLock(); defer player.mutex.RUnlock()
-	return player.doUpdate
+	player.mutex.Lock(); defer player.mutex.Unlock()
+	if !player.doUpdate {
+		return false
+	}
+
+	player.doUpdate = false
+	return true
 }
 
 func (player *Player) GetName() string {

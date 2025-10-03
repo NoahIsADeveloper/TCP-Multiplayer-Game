@@ -53,7 +53,7 @@ func encodePacket(packetId int, data []byte) []byte {
 
 func (sconn *SafeConn) WriteUDP(conn net.UDPConn, data []byte) (int, error) {
 	if !sconn.hasUdp { return 0, nil }
-	value, err := conn.WriteTo(data, &sconn.udpAddr)
+	value, err := conn.WriteToUDP(data, &sconn.udpAddr)
 	return value, err
 }
 
