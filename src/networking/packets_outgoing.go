@@ -6,8 +6,8 @@ import (
 	"potato-bones/src/utils"
 )
 
-func scResetSequenceCount(lobby *Lobby) {
-	lobby.SendPacketToAllTCP(SC_RESET_SEQUENCE_COUNT, []byte{})
+func scResetSequenceCount(sconn *utils.SafeConn) {
+	sconn.SendPacketTCP(SC_RESET_SEQUENCE_COUNT, make([]byte, 0))
 }
 
 func scUpdatePlayers(lobby *Lobby, sequence int) error {
@@ -16,7 +16,6 @@ func scUpdatePlayers(lobby *Lobby, sequence int) error {
 	var arraySize int = 0
 
 	players := lobby.GetPlayers()
-	datatypes.AppendVarInt(&array, sequence)
 	for clientId, player := range(players) {
 		if !player.DoUpdate() { continue }
 		datatypes.AppendVarInt(&array, int(clientId))
@@ -28,6 +27,7 @@ func scUpdatePlayers(lobby *Lobby, sequence int) error {
 
 	if arraySize == 0 { return nil }
 
+	datatypes.AppendVarInt(&data, sequence)
 	datatypes.AppendVarInt(&data, arraySize)
 	data = append(data, array...)
 

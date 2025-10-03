@@ -70,15 +70,23 @@ func updatePlayers(tickrate int) {
 	ticker := time.NewTicker(time.Duration(tickrate) * time.Millisecond)
     defer ticker.Stop()
 
-	var sequence uint32 = 0
+	var sequence uint16 = 0
 
     for range ticker.C {
 		for _, lobby := range(lobbies) {
 			scUpdatePlayers(lobby, int(sequence))
+		}
 
-			if sequence == 0 {
-				scResetSequenceCount(lobby)
+		// About once every 13 minutes
+		// Max of 2 bytes of data
+		if sequence >= 16300 {
+			clientMutex.RLock()
+			for _, sconn := range(connectionsFromClientId) {
+				scResetSequenceCount(sconn)
 			}
+			clientMutex.RUnlock()
+
+			sequence = 0
 		}
 
 		sequence++
