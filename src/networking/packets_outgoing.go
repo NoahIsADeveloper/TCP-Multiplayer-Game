@@ -35,23 +35,6 @@ func scUpdatePlayers(lobby *Lobby, sequence int) error {
 	return nil
 }
 
-//
-func scJoinAccept(sconn *utils.SafeConn, clientId clientID, lobby *Lobby) error {
-	var data []byte
-	datatypes.AppendVarInt(&data, int(clientId))
-	datatypes.AppendVarInt(&data, int(lobby.GetID()))
-	datatypes.AppendString(&data, lobby.GetName())
-
-	return sconn.SendPacketTCP(SC_LOBBY_JOIN_ACCEPT, data)
-}
-
-func scJoinDeny(sconn *utils.SafeConn, reason string) error {
-	var data []byte
-	datatypes.AppendString(&data, reason)
-	return sconn.SendPacketTCP(SC_LOBBY_JOIN_ACCEPT, data)
-}
-
-// Requests
 func scSyncClientId(sconn *utils.SafeConn, clientId clientID) error {
 	data := []byte{}
 	datatypes.AppendVarInt(&data, int(clientId))
@@ -125,6 +108,21 @@ func scLobbyList(sconn *utils.SafeConn) error {
 	}
 
 	return sconn.SendPacketTCP(SC_LOBBY_LIST, data)
+}
+
+func scJoinAccept(sconn *utils.SafeConn, clientId clientID, lobby *Lobby) error {
+	var data []byte
+	datatypes.AppendVarInt(&data, int(clientId))
+	datatypes.AppendVarInt(&data, int(lobby.GetID()))
+	datatypes.AppendString(&data, lobby.GetName())
+
+	return sconn.SendPacketTCP(SC_LOBBY_JOIN_ACCEPT, data)
+}
+
+func scJoinDeny(sconn *utils.SafeConn, reason string) error {
+	var data []byte
+	datatypes.AppendString(&data, reason)
+	return sconn.SendPacketTCP(SC_LOBBY_JOIN_ACCEPT, data)
 }
 
 func scKickPlayer(sconn *utils.SafeConn, reason string) error {
