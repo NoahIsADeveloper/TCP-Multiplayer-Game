@@ -18,7 +18,6 @@ type SafeConn struct {
 	writeMutex sync.Mutex
 }
 
-//TODO lpease find a better way to impliemnt this hoy fucking shit
 func DecodeVarInt(sconn *SafeConn) (int, error) {
 	var result int
 	var shift uint
